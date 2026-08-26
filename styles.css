@@ -56,6 +56,7 @@
   }
   #clientSelect:focus { outline: none; border-color: #5BB3FF; }
   #clientSelect option { background: #1A2E4A; color: #fff; }
+  #clientSelect optgroup { background: #1A2E4A; color: #5BB3FF; font-style: normal; font-weight: 700; }
   .header-date { color: rgba(255,255,255,.4); font-size: 12px; margin-right: auto; white-space: nowrap; }
   .add-client-btn {
     background: rgba(255,255,255,.1); color: #fff;
@@ -79,6 +80,20 @@
   .client-info { flex: 1; }
   .client-name { font-size: 17px; font-weight: 700; color: var(--gray-900); }
   .client-meta { font-size: 11.5px; color: var(--gray-500); margin-top: 2px; }
+
+  /* CLIENT STATUS */
+  .client-status-select {
+    appearance: none; border: 1px solid transparent; border-radius: 20px;
+    padding: 4px 12px; font-size: 11.5px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    background: var(--gray-100); color: var(--gray-500);
+  }
+  .client-status-select:disabled { cursor: not-allowed; opacity: .7; }
+  .client-status-select:focus { outline: none; border-color: var(--blue); }
+  .client-status-select.status-active     { background: var(--green-lt); color: var(--green); }
+  .client-status-select.status-potential  { background: var(--amber-lt); color: var(--amber); }
+  .client-status-select.status-inactive   { background: var(--gray-100); color: var(--gray-500); }
+
   .stat-pills { display: flex; gap: 8px; }
   .stat-pill {
     border-radius: 20px; padding: 4px 12px;

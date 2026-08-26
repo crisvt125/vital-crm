@@ -145,6 +145,13 @@ ZOHO.embeddedApp.on("PageLoad", function() {
 ZOHO.embeddedApp.init();
 
 // ── LOAD ACCOUNTS ─────────────────────────────────────────────
+const CLIENT_STATUS_GROUPS = [
+  { status: "לקוח פעיל",       label: "לקוחות פעילים" },
+  { status: "לקוח פוטנציאלי",  label: "לקוחות פוטנציאליים" },
+  { status: "לקוח לא פעיל",    label: "לקוחות לא פעילים" },
+  { status: "",                label: "ללא סטטוס" }
+];
+
 function loadAccounts() {
   ZOHO.CRM.API.getAllRecords({
     Entity: "Accounts",
@@ -161,14 +168,24 @@ function loadAccounts() {
       return;
     }
 
-    resp.data.forEach(function(account) {
-      const opt = document.createElement("option");
-      opt.value        = account.id;
-      opt.textContent  = account.Account_Name;
-      opt.dataset.phone    = account.Phone    || "";
-      opt.dataset.industry = account.Industry || "";
-      opt.dataset.owner    = account.Owner ? account.Owner.name : "";
-      sel.appendChild(opt);
+    // Grouped by status (active → potential → inactive → none), alphabetical
+    // within each group since the API already returned accounts sorted by name.
+    CLIENT_STATUS_GROUPS.forEach(function(group) {
+      const accounts = resp.data.filter(function(a) { return (a.field6 || "") === group.status; });
+      if (!accounts.length) return;
+      const optgroup = document.createElement("optgroup");
+      optgroup.label = group.label;
+      accounts.forEach(function(account) {
+        const opt = document.createElement("option");
+        opt.value        = account.id;
+        opt.textContent  = account.Account_Name;
+        opt.dataset.phone    = account.Phone    || "";
+        opt.dataset.industry = account.Industry || "";
+        opt.dataset.owner    = account.Owner ? account.Owner.name : "";
+        opt.dataset.status   = account.field6  || "";
+        optgroup.appendChild(opt);
+      });
+      sel.appendChild(optgroup);
     });
 
     sel.addEventListener("change", function() {
@@ -178,7 +195,8 @@ function loadAccounts() {
         name:     opt.textContent,
         phone:    opt.dataset.phone,
         industry: opt.dataset.industry,
-        owner:    opt.dataset.owner
+        owner:    opt.dataset.owner,
+        status:   opt.dataset.status
       });
     });
 
@@ -202,7 +220,46 @@ function showHomeView() {
   document.getElementById("clientSelect").value = "";
   currentAccountId = null;
   sessionStorage.removeItem("crm_lastAccountId");
+  setClientStatusSelect("");
+  document.getElementById("clientStatusSelect").disabled = true;
 }
+
+// ── CLIENT STATUS ─────────────────────────────────────────────
+const CLIENT_STATUS_CLASS = {
+  "לקוח פעיל": "status-active",
+  "לקוח פוטנציאלי": "status-potential",
+  "לקוח לא פעיל": "status-inactive"
+};
+
+function setClientStatusSelect(status) {
+  const sel = document.getElementById("clientStatusSelect");
+  sel.value = status || "";
+  Object.values(CLIENT_STATUS_CLASS).forEach(c => sel.classList.remove(c));
+  if (CLIENT_STATUS_CLASS[status]) sel.classList.add(CLIENT_STATUS_CLASS[status]);
+}
+
+document.getElementById("clientStatusSelect").addEventListener("change", function() {
+  if (!currentAccountId) return;
+  const newStatus = this.value;
+  const sel = document.getElementById("clientSelect");
+  const opt = sel.options[sel.selectedIndex];
+  const prevStatus = opt ? opt.dataset.status : "";
+  this.disabled = true;
+
+  ZOHO.CRM.API.updateRecord({
+    Entity: "Accounts",
+    APIData: { id: currentAccountId, field6: newStatus },
+    Trigger: []
+  }).then(function() {
+    if (opt) opt.dataset.status = newStatus;
+    setClientStatusSelect(newStatus);
+  }).catch(function(err) {
+    setClientStatusSelect(prevStatus);
+    showError("לא ניתן לעדכן סטטוס לקוח — " + JSON.stringify(err));
+  }).finally(function() {
+    document.getElementById("clientStatusSelect").disabled = false;
+  });
+});
 
 document.addEventListener("keydown", function(e) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -293,6 +350,8 @@ function loadClientData(id, meta) {
     [meta.owner    ? "אחראי: " + meta.owner    : "",
      meta.industry || "",
      meta.phone    || ""].filter(Boolean).join("  ·  ");
+  setClientStatusSelect(meta.status || "");
+  document.getElementById("clientStatusSelect").disabled = false;
 
   ["statTasks","statNotes","statActions"].forEach(function(s) {
     document.getElementById(s).textContent = "…";
@@ -1405,6 +1464,7 @@ function goToClient(accountId) {
     name:     opt.textContent,
     phone:    opt.dataset.phone    || "",
     industry: opt.dataset.industry || "",
-    owner:    opt.dataset.owner    || ""
+    owner:    opt.dataset.owner    || "",
+    status:   opt.dataset.status   || ""
   });
 }

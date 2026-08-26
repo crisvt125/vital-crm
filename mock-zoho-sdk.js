@@ -58,9 +58,9 @@
 
     return {
       Accounts: [
-        { id: accA, Account_Name: refA.name, Phone: "03-1234567", Industry: "ביטוח", Owner: owner, Website: "https://example.co.il", Account_Number: "10021", Created_Time: daysFromNow(-120) },
-        { id: accB, Account_Name: refB.name, Phone: "09-7654321", Industry: "הייטק", Owner: owner, Website: "https://alpha-tech.example", Account_Number: "10022", Created_Time: daysFromNow(-80) },
-        { id: accC, Account_Name: refC.name, Phone: "052-9998877", Industry: "פרטי", Owner: owner, Website: "", Account_Number: "10023", Created_Time: daysFromNow(-30) }
+        { id: accA, Account_Name: refA.name, Phone: "03-1234567", Industry: "ביטוח", Owner: owner, Website: "https://example.co.il", Account_Number: "10021", Created_Time: daysFromNow(-120), field6: "לקוח פעיל" },
+        { id: accB, Account_Name: refB.name, Phone: "09-7654321", Industry: "הייטק", Owner: owner, Website: "https://alpha-tech.example", Account_Number: "10022", Created_Time: daysFromNow(-80), field6: "לקוח פוטנציאלי" },
+        { id: accC, Account_Name: refC.name, Phone: "052-9998877", Industry: "פרטי", Owner: owner, Website: "", Account_Number: "10023", Created_Time: daysFromNow(-30), field6: "לקוח לא פעיל" }
       ],
       Contacts: [
         { id: uid("con"), First_Name: "דנה", Last_Name: "לוי", Mobile: "050-1112222", Email: "dana@example.co.il", Account_Name: refA, Owner: owner },
@@ -334,6 +334,7 @@
       { api_name: "field2", field_label: "ממליץ", data_type: "text" },
       { api_name: "field4", field_label: "עמלת ממליץ", data_type: "text" },
       { api_name: "field5", field_label: "גובה העמלה", data_type: "text" },
+      { api_name: "field6", field_label: "סטטוס לקוח", data_type: "picklist", pick_list_values: pick(["לקוח פעיל", "לקוח פוטנציאלי", "לקוח לא פעיל"]) },
       { api_name: "Owner", field_label: "Owner", data_type: "ownerlookup" }
     ],
     Notes: [

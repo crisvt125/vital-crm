@@ -55,6 +55,7 @@
     var refA = { id: accA, name: 'חברת דוגמה בע"מ' };
     var refB = { id: accB, name: "טכנולוגיות אלפא" };
     var refC = { id: accC, name: "משפחת לוי" };
+    var evtAifion = uid("evt");
 
     return {
       Accounts: [
@@ -89,7 +90,7 @@
           Status: "Not Started", What_Id: refB, $se_module: "Accounts", Owner: owner
         },
         {
-          id: uid("evt"), Event_Title: "פגישת אפיון ראשונית", Description: "פגישה ראשונית להיכרות עם הצרכים.",
+          id: evtAifion, Event_Title: "פגישת אפיון ראשונית", Description: "פגישה ראשונית להיכרות עם הצרכים.",
           Start_DateTime: daysFromNow(-9, 10, 0), End_DateTime: daysFromNow(-9, 10, 30),
           Status: "Completed", What_Id: refA, $se_module: "Accounts", Owner: owner
         },
@@ -97,6 +98,30 @@
           id: uid("evt"), Event_Title: "פגישת תכנון שנתית", Description: "",
           Start_DateTime: daysFromNow(6, 12, 0), End_DateTime: daysFromNow(6, 13, 0),
           Status: "Not Started", What_Id: refC, $se_module: "Accounts", Owner: owner
+        },
+        {
+          id: uid("evt"), Event_Title: "שיחת מעקב רבעונית", Description: "מעקב אחר השירותים הניתנים ובחינת צרכים נוספים.",
+          Start_DateTime: daysFromNow(-5, 11, 0), End_DateTime: daysFromNow(-5, 11, 30),
+          Status: "Not Started", What_Id: refB, $se_module: "Accounts", Owner: owner,
+          Meeting_Venue__s: "Online", Meeting_Provider__s: "Microsoft Teams",
+          $meeting_details: { joinmeeting_url: "https://teams.microsoft.com/l/meetup-join/mock-needs-recap" }
+        }
+      ],
+      Meeting_Summaries: [
+        {
+          id: uid("msum"), Name: "פגישת אפיון ראשונית", Meeting_Date: daysFromNow(-9, 10, 0),
+          Short_Summary: "הוצגו הצרכים הביטוחיים העיקריים של הלקוח וסוכם על <strong>המשך בדיקת אפשרויות</strong>.",
+          Long_Summary: "נסקרו הכיסויים הקיימים מול הצרכים בפועל. הלקוח ביקש הצעת מחיר לשני מוצרים נוספים ולוודא תיאום עם רואה החשבון שלו לפני קבלת החלטה.\n\n— חשיפות —\n• פרמיה שנתית קיימת: כ-12,000 ש\"ח",
+          Action_Items_JSON: "", Source_Event_Id: evtAifion, Account: refA
+        },
+        {
+          id: uid("msum"), Name: "פגישת הכרות ראשונית עם לקוח חדש", Meeting_Date: daysFromNow(-14, 9, 0),
+          Short_Summary: "שיחת הכרות ראשונית — הלקוח מעוניין בייעוץ פנסיוני מקיף.",
+          Long_Summary: "הלקוח פנה דרך המלצה וביקש לבחון מחדש את מצב הפנסיה וביטוחי המנהלים הקיימים. נקבע להעביר טפסי ייפוי כוח ולתאם פגישת המשך.",
+          Action_Items_JSON: JSON.stringify([
+            { task: "לשלוח טופס ייפוי כוח ללקוח", owner: "רועי כהן", deadline: "", deadline_text: "" },
+            { task: "לתאם פגישת המשך", owner: "רועי כהן", deadline: "", deadline_text: "תוך שבועיים" }
+          ])
         }
       ]
     };
@@ -151,6 +176,9 @@
     if (entity === "Contacts" && out.Account_Name) {
       out.Account_Name = resolveRef("Accounts", out.Account_Name);
     }
+    if (entity === "Meeting_Summaries" && out.Account) {
+      out.Account = resolveRef("Accounts", out.Account);
+    }
     return out;
   }
 
@@ -198,6 +226,8 @@
       records = records.filter(function (r) { return fieldRefMatches(r.Parent_Id, recordId); });
     } else if (entity === "Contacts") {
       records = records.filter(function (r) { return fieldRefMatches(r.Account_Name, recordId); });
+    } else if (entity === "Meeting_Summaries") {
+      records = records.filter(function (r) { return fieldRefMatches(r.Account, recordId); });
     }
     records = sortRecords(records, args.sort_by, args.sort_order);
     return delay({ data: paginate(records, args), status: "success" });
@@ -348,6 +378,15 @@
       { api_name: "Mobile", field_label: "Mobile", data_type: "phone" },
       { api_name: "Email", field_label: "Email", data_type: "email" },
       { api_name: "Account_Name", field_label: "Account Name", data_type: "lookup" }
+    ],
+    Meeting_Summaries: [
+      { api_name: "Name", field_label: "Meeting Summary Name", data_type: "text" },
+      { api_name: "Meeting_Date", field_label: "Meeting Date", data_type: "datetime" },
+      { api_name: "Short_Summary", field_label: "Short Summary", data_type: "text" },
+      { api_name: "Long_Summary", field_label: "Long Summary", data_type: "textarea" },
+      { api_name: "Action_Items_JSON", field_label: "Action Items JSON", data_type: "textarea" },
+      { api_name: "Source_Event_Id", field_label: "Source Event Id", data_type: "text" },
+      { api_name: "Account", field_label: "Account", data_type: "lookup" }
     ]
   };
 

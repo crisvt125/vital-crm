@@ -126,6 +126,105 @@ creates an isolated test meeting and polls it at 0/3/6/10/15s, logging
 and `$meeting_details` at each step, so you can see exactly when/whether
 provisioning actually happened rather than guessing from the UI.
 
+## Meeting summary ingestion
+
+A separate pipeline (not part of this repo) summarizes Teams meetings and
+writes the results into a custom Zoho module, **Meeting Summaries**
+(module api_name `Meeting_Summaries`, module_name `CustomModule1` — always
+address it as `Meeting_Summaries` in API calls). It has a lookup field to
+Accounts (field api_name `Account`), so Zoho automatically exposes it as a
+related list on the Account page — the widget fetches it the same way it
+already does for Tasks/Notes/Events (`RelatedList: "Meeting_Summaries"`,
+unconfirmed against a real "Test Locally" pass yet since Zoho's
+record-data REST endpoints require full OAuth that couldn't be exercised
+from the admin console session used to build this — if a real fetch ever
+comes back empty, check this name first via `ZOHO.CRM.META.getFields` or
+the debug console).
+
+**Fields** (all confirmed via the CRM fields API at creation time):
+
+| Field label | api_name | Type | Notes |
+|---|---|---|---|
+| Meeting Summary Name | `Name` | text | Module's built-in primary field — use as the meeting title |
+| Meeting Date | `Meeting_Date` | datetime | Denormalized copy of the source Event's `Start_DateTime`, not a live reference |
+| Short Summary | `Short_Summary` | text | Shown inline in the widget's Meeting Summaries panel |
+| Long Summary | `Long_Summary` | textarea (32000 chars) | Shown behind a "show full summary" disclosure |
+| Action Items JSON | `Action_Items_JSON` | textarea (32000 chars) | JSON array of objects — see below |
+| Account | `Account` | lookup → Accounts | **Left blank when the meeting can't be matched** — see below |
+| Source Event Id | `Source_Event_Id` | text | Plain text copy of the matched Event's `id`, *not* a lookup — used only so the widget can flag a meeting as "already has a summary" without creating a real relationship |
+
+**Matching**: search Events by `Online_Meeting_External_UUID__s` (the real,
+read-only field Zoho populates once a Teams meeting is actually
+provisioned — see "Online meeting provisioning" above) against the Teams
+meeting's UUID.
+
+- **Matched** — insert a Meeting Summary record with `Account` set to that
+  Event's account and `Source_Event_Id` set to that Event's `id`.
+- **Unmatched** — insert the same record with `Account` left blank. It
+  will show up in the widget's home-screen "תקצירים ממתינים לשיוך"
+  (summaries awaiting assignment) panel until a human picks the right
+  client for it from inside the widget.
+
+`Name` and `Meeting_Date` come from the meeting's own calendar/Teams
+metadata, not from Claude's output — the pipeline merges the two sides
+before inserting the record.
+
+### Mapping Claude's summarization output onto these fields
+
+The pipeline calls Claude to summarize the Teams transcript. Its actual
+output shape (confirmed from a real run) is richer than a flat
+summary/action-items pair — e.g.:
+
+```json
+{
+  "summary": "<long narrative paragraph, with <strong>/<em> emphasis>",
+  "highlights": ["<bullet point>", "<bullet point>", ...],
+  "action_items": [
+    { "task": "...", "owner": "...", "deadline": "", "deadline_text": "..." }
+  ],
+  "exposures": [ { "...": "...domain-specific structured fields..." } ]
+}
+```
+
+`<strong>`/`<em>` tags in `summary`/`highlights` are preserved on purpose —
+the widget's renderer (`sanitizeSummaryHtml()` in `app.js`) escapes
+everything else but allows exactly that pair through, so emphasis survives
+without opening up any injection risk. Map it onto the three fields like
+this:
+
+- **`Short_Summary`** = `highlights[0]` — the single headline point. Keep
+  this genuinely short; it's a single-line field.
+- **`Long_Summary`** = `summary`, followed by the full `highlights` list
+  formatted as bullets. If the output includes any other structured,
+  domain-specific section beyond `summary`/`highlights`/`action_items`
+  (`exposures` in the example above, but the shape will vary by meeting
+  type) — append it as a formatted block at the end of `Long_Summary` too,
+  rather than dropping it or inventing a new Zoho field per possible
+  extraction type.
+- **`Action_Items_JSON`** = `JSON.stringify(action_items)` as-is — store
+  the full objects, not just the task text. The widget's
+  `processActionItems()` reads `item.task` for the Task's `Subject` and
+  folds `item.owner`/`item.deadline_text` into the Task's `Description`
+  (it does **not** try to parse `deadline_text` into an actual date —
+  that's free text like "tomorrow evening or the day after morning"; the
+  Task's `Due_Date` stays the meeting date + 3 days, same as always).
+
+**Deliberately not the pipeline's job**: turning `Action_Items_JSON` into
+Tasks. The widget does this itself (`processActionItems()` in `app.js`) —
+once for every home-view load (covering the matched case) and immediately
+when a human assigns an unmatched summary to a client — so that logic
+lives in exactly one place. The field gets cleared to `""` once processed;
+an empty value is a safe "nothing pending" signal whether that's because
+there were never any items or because they were already turned into
+Tasks.
+
+**Why a separate module instead of fields on Events**: summaries are meant
+to be a durable, growing per-client history. Fields on the Event record
+would be lost if the meeting is later deleted (`deleteMeeting()` already
+exists in this app), and a single accumulating text field on the Account
+would eventually hit Zoho's ~32K character field cap for an active client.
+A dedicated module with one record per summary has neither problem.
+
 ## Deploying
 
 Push to `main` and enable/refresh GitHub Pages — Zoho CRM will pick up the new

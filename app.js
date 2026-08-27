@@ -71,6 +71,12 @@ function testOnlineMeetingFields() {
 function esc(s) {
   return String(s || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
+// Meeting summaries (pipeline-generated) may contain <strong>/<em> emphasis.
+// Escape everything first (neutralizing any other tag), then re-allow only
+// that exact pair — safer than a general HTML sanitizer for this one need.
+function sanitizeSummaryHtml(s) {
+  return esc(s).replace(/&lt;(\/?)(strong|em)&gt;/gi, "<$1$2>");
+}
 function fmtDate(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("he-IL", { day:"2-digit", month:"short", year:"numeric" });
@@ -108,9 +114,19 @@ function priorityHe(p) {
 
 // ── STATE ─────────────────────────────────────────────────────
 let allTasks = [], allNotes = [], allMeetings = [], allContacts = [];
+let allMeetingSummaries = [], allHomeMeetingSummaries = [], homeSummarizedIds = new Set();
 let taskFilter = "all", noteFilter = "all", meetingTimeFilter = "upcoming";
 let currentAccountId = null, remarkTaskId = null, editingMeetingId = null, editingContactId = null;
 let meetingParticipantEmails = [];
+let assigningSummaryId = null;
+
+function isOnlineMeeting(m) {
+  return !!(m && (
+    (m.$meeting_details && m.$meeting_details.joinmeeting_url) ||
+    m.Meeting_Provider__s ||
+    m.Meeting_Venue__s === "Online"
+  ));
+}
 
 // ── FILTERS ───────────────────────────────────────────────────
 document.getElementById("taskFilters").addEventListener("click", function(e) {
@@ -134,6 +150,26 @@ document.getElementById("meetingTimeFilters").addEventListener("click", function
   meetingTimeFilter = btn.dataset.tf;
   renderActivities();
 });
+
+// ── COLLAPSIBLE PANELS (mobile only — see styles.css) ──────────
+// Runs once: the panel shells are static markup, only their inner lists
+// get re-rendered per client, so wiring happens a single time at load.
+function initCollapsiblePanels() {
+  document.querySelectorAll(".panel[data-panel-id]").forEach(function(panel) {
+    const key = "panel_collapsed_" + panel.dataset.panelId;
+    const stored = localStorage.getItem(key);
+    const collapsed = stored === null ? true : stored === "1";
+    panel.classList.toggle("collapsed", collapsed);
+    const toggle = panel.querySelector(".panel-collapse-toggle");
+    if (!toggle) return;
+    toggle.addEventListener("click", function() {
+      const nowCollapsed = !panel.classList.contains("collapsed");
+      panel.classList.toggle("collapsed", nowCollapsed);
+      localStorage.setItem(key, nowCollapsed ? "1" : "0");
+    });
+  });
+}
+initCollapsiblePanels();
 
 // ── ZOHO INIT ─────────────────────────────────────────────────
 ZOHO.embeddedApp.on("PageLoad", function() {
@@ -361,6 +397,7 @@ function loadClientData(id, meta) {
   showSpinner("taskList");
   showSpinner("noteList");
   showSpinner("actionList");
+  showSpinner("summaryList");
 
   Promise.all([
     ZOHO.CRM.API.getRelatedRecords({ Entity:"Accounts", RecordID:id, RelatedList:"Tasks", page:1, per_page:50 }),
@@ -389,6 +426,46 @@ function loadClientData(id, meta) {
 
   loadMeetings(id);
   loadContacts(id);
+  loadMeetingSummaries(id);
+}
+
+// ── MEETING SUMMARIES ─────────────────────────────────────────
+function loadMeetingSummaries(accountId) {
+  ZOHO.CRM.API.getRelatedRecords({
+    Entity: "Accounts", RecordID: accountId,
+    RelatedList: "Meeting_Summaries", page: 1, per_page: 50
+  }).then(function(resp) {
+    allMeetingSummaries = resp.data || [];
+    renderMeetingSummaries();
+  }).catch(function(err) {
+    allMeetingSummaries = [];
+    renderMeetingSummaries();
+    showError("לא ניתן לטעון תקצירי פגישות — " + JSON.stringify(err));
+  });
+}
+
+function renderMeetingSummaries() {
+  const items = [...allMeetingSummaries].sort((a, b) => new Date(b.Meeting_Date || 0) - new Date(a.Meeting_Date || 0));
+  document.getElementById("summaryCount").textContent = allMeetingSummaries.length;
+
+  const list = document.getElementById("summaryList");
+  if (!items.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🧾</div><div>אין תקצירי פגישות עדיין</div></div>';
+    return;
+  }
+
+  list.innerHTML = items.map(function(s) {
+    const long = (s.Long_Summary || "").trim();
+    return `
+      <div class="summary-card">
+        <div class="summary-header">
+          <div class="summary-title">${esc(s.Name || "פגישה")}</div>
+          ${s.Meeting_Date ? `<span class="summary-date">${fmtDate(s.Meeting_Date)}</span>` : ""}
+        </div>
+        ${s.Short_Summary ? `<div class="summary-short">${sanitizeSummaryHtml(s.Short_Summary)}</div>` : ""}
+        ${long ? `<details class="summary-details"><summary>הצג תקציר מלא</summary><div class="summary-long">${sanitizeSummaryHtml(long)}</div></details>` : ""}
+      </div>`;
+  }).join("");
 }
 
 // ── CONTACTS ──────────────────────────────────────────────────
@@ -589,12 +666,15 @@ function renderActivities() {
     return;
   }
 
+  const summarizedIds = new Set(allMeetingSummaries.map(function(s) { return s.Source_Event_Id; }).filter(Boolean));
+
   list.innerHTML = items.map(function(a) {
-    const done     = a.Status === "Completed";
-    const desc     = (a.Description || "").trim();
-    const meetDate = a.Start_DateTime || "";
-    const upcoming = meetDate && new Date(meetDate) >= now;
-    const joinUrl  = a.$meeting_details && a.$meeting_details.joinmeeting_url;
+    const done      = a.Status === "Completed";
+    const desc      = (a.Description || "").trim();
+    const meetDate  = a.Start_DateTime || "";
+    const upcoming  = meetDate && new Date(meetDate) >= now;
+    const joinUrl   = a.$meeting_details && a.$meeting_details.joinmeeting_url;
+    const needsRecap = !upcoming && isOnlineMeeting(a) && !summarizedIds.has(a.id);
     return `
       <div class="action-card ${done?"done-action":""}">
         <div class="action-header">
@@ -602,6 +682,7 @@ function renderActivities() {
           ${meetDate ? `<span class="meeting-date ${upcoming?"upcoming":""}">📅 ${fmtDateTime(meetDate)}</span>` : ""}
           ${isToday(meetDate) ? `<span class="badge badge-today">היום</span>` : ""}
           <span class="badge ${upcoming?"badge-upcoming":"badge-past"}">${upcoming?"עתידי":"עבר"}</span>
+          ${needsRecap ? `<span class="badge badge-recap">⚠ ממתין לתקציר</span>` : ""}
         </div>
         ${desc ? `<div class="action-body">${esc(desc.substring(0,140))}${desc.length>140?"…":""}</div>` : ""}
         <div class="action-footer">
@@ -884,13 +965,9 @@ function openMeetingModal(meetingId) {
   document.getElementById("meetingDesc").value = meeting ? (meeting.Description || "") : "";
   // Detect an existing online meeting robustly: reads return the localized
   // picklist label (e.g. "מחוברים"), not "Online", so match on the provisioned
-  // Teams details / provider instead of the venue label alone. New meetings
-  // (no existing record) default to checked, since Teams is the common case.
-  document.getElementById("meetingOnlineTeams").checked = meeting ? !!(
-    (meeting.$meeting_details && meeting.$meeting_details.joinmeeting_url) ||
-    meeting.Meeting_Provider__s ||
-    meeting.Meeting_Venue__s === "Online"
-  ) : true;
+  // Teams details / provider instead of the venue label alone (see isOnlineMeeting).
+  // New meetings (no existing record) default to checked, since Teams is the common case.
+  document.getElementById("meetingOnlineTeams").checked = meeting ? isOnlineMeeting(meeting) : true;
   if (meeting) {
     meetingParticipantEmails = (meeting.Participants || []).filter(function(p) { return p.type === "email"; }).map(function(p) { return p.participant; });
   } else {
@@ -1276,18 +1353,146 @@ var homeCalendarSelectedDate = new Date();
 function loadHomeView() {
   Promise.all([
     ZOHO.CRM.API.getAllRecords({ Entity: "Tasks", sort_order: "asc", sort_by: "Due_Date", per_page: 50, page: 1 }),
-    ZOHO.CRM.API.getAllRecords({ Entity: "Events", sort_order: "asc", sort_by: "Start_DateTime", per_page: 50, page: 1 })
+    ZOHO.CRM.API.getAllRecords({ Entity: "Events", sort_order: "asc", sort_by: "Start_DateTime", per_page: 50, page: 1 }),
+    ZOHO.CRM.API.getAllRecords({ Entity: "Meeting_Summaries", per_page: 100, page: 1 })
   ]).then(function(results) {
     var openTasks = (results[0].data || []).filter(function(t) { return t.Status !== "Completed"; });
     allHomeMeetings = results[1].data || [];
+    allHomeMeetingSummaries = results[2].data || [];
+    homeSummarizedIds = new Set(allHomeMeetingSummaries.map(function(s) { return s.Source_Event_Id; }).filter(Boolean));
     renderHomeTasks(openTasks);
     renderHomeMeetingsView();
+    renderPendingSummaries();
+    processActionItems(allHomeMeetingSummaries.filter(function(s) { return s.Account && s.Action_Items_JSON; }));
   }).catch(function(err) {
     dbg("loadHomeView ERROR", err, true);
     document.getElementById("homeTaskList").innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div>שגיאה בטעינה</div></div>';
     document.getElementById("homeMeetingList").innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div>שגיאה בטעינה</div></div>';
+    document.getElementById("pendingSummaryList").innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div>שגיאה בטעינה</div></div>';
   });
 }
+
+// ── ACTION ITEMS → TASKS ────────────────────────────────────────
+function processActionItems(summaries) {
+  (summaries || []).forEach(function(s) {
+    if (!s.Account || !s.Action_Items_JSON) return;
+    let items;
+    try { items = JSON.parse(s.Action_Items_JSON); } catch (e) { items = null; }
+    const accountId = (s.Account && s.Account.id) || s.Account;
+
+    if (Array.isArray(items) && items.length) {
+      const dueDate = s.Meeting_Date ? new Date(s.Meeting_Date) : new Date();
+      dueDate.setDate(dueDate.getDate() + 3);
+      const dueDateStr = dueDate.toISOString().slice(0, 10);
+      items.forEach(function(item) {
+        const subject = typeof item === "string" ? item : ((item && (item.task || item.title || item.text)) || String(item));
+        const extra = [];
+        if (item && item.owner) extra.push("אחראי: " + item.owner);
+        if (item && item.deadline_text) extra.push("יעד: " + item.deadline_text);
+        ZOHO.CRM.API.insertRecord({
+          Entity: "Tasks",
+          APIData: {
+            Subject: subject,
+            Description: extra.join(" · "),
+            Due_Date: dueDateStr,
+            Priority: "Normal",
+            Status: "Not Started",
+            What_Id: accountId,
+            $se_module: "Accounts"
+          }
+        }).catch(function(err) { dbg("processActionItems ✗ insertRecord Task", err, true); });
+      });
+    }
+
+    ZOHO.CRM.API.updateRecord({
+      Entity: "Meeting_Summaries",
+      APIData: { id: s.id, Action_Items_JSON: "" },
+      Trigger: []
+    }).catch(function(err) { dbg("processActionItems ✗ clear Action_Items_JSON", err, true); });
+  });
+}
+
+// ── PENDING SUMMARIES (home screen inbox) ───────────────────────
+function renderPendingSummaries() {
+  const pending = allHomeMeetingSummaries.filter(function(s) { return !s.Account; });
+  document.getElementById("pendingSummaryCount").textContent = pending.length;
+  const list = document.getElementById("pendingSummaryList");
+  if (!pending.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🧾</div><div>אין תקצירים ממתינים לשיוך</div></div>';
+    return;
+  }
+  list.innerHTML = pending.map(function(s) {
+    return `
+      <div class="summary-card">
+        <div class="summary-header">
+          <div class="summary-title">${esc(s.Name || "פגישה")}</div>
+          ${s.Meeting_Date ? `<span class="summary-date">${fmtDate(s.Meeting_Date)}</span>` : ""}
+        </div>
+        ${s.Short_Summary ? `<div class="summary-short">${sanitizeSummaryHtml(s.Short_Summary)}</div>` : ""}
+        <div class="action-footer">
+          <button class="assign-btn" data-summary-id="${esc(s.id)}">שייך ללקוח</button>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+document.getElementById("pendingSummaryList").addEventListener("click", function(e) {
+  const btn = e.target.closest(".assign-btn");
+  if (btn && btn.dataset.summaryId) openAssignSummaryModal(btn.dataset.summaryId);
+});
+
+function openAssignSummaryModal(summaryId) {
+  const s = allHomeMeetingSummaries.find(function(x) { return x.id === summaryId; });
+  if (!s) return;
+  assigningSummaryId = summaryId;
+  document.getElementById("assignSummarySubject").textContent = s.Name || "פגישה";
+  const sel = document.getElementById("assignSummaryClientSelect");
+  const clientOptions = document.getElementById("clientSelect").querySelectorAll("option[value]:not([value=''])");
+  sel.innerHTML = '<option value="">— בחר לקוח —</option>' +
+    Array.prototype.map.call(clientOptions, function(o) {
+      return '<option value="' + esc(o.value) + '">' + esc(o.textContent) + '</option>';
+    }).join("");
+  const saveBtn = document.getElementById("saveAssignSummaryBtn");
+  saveBtn.disabled = false;
+  saveBtn.textContent = "שייך";
+  document.getElementById("assignSummaryModal").classList.add("open");
+}
+
+function closeAssignSummaryModal() {
+  document.getElementById("assignSummaryModal").classList.remove("open");
+  assigningSummaryId = null;
+}
+
+function saveAssignSummary() {
+  const accountId = document.getElementById("assignSummaryClientSelect").value;
+  if (!accountId || !assigningSummaryId) return;
+  const saveBtn = document.getElementById("saveAssignSummaryBtn");
+  saveBtn.disabled = true;
+  saveBtn.textContent = "משייך...";
+
+  ZOHO.CRM.API.updateRecord({
+    Entity: "Meeting_Summaries",
+    APIData: { id: assigningSummaryId, Account: accountId },
+    Trigger: []
+  }).then(function() {
+    const s = allHomeMeetingSummaries.find(function(x) { return x.id === assigningSummaryId; });
+    if (s) {
+      s.Account = { id: accountId };
+      processActionItems([s]);
+    }
+    closeAssignSummaryModal();
+    renderPendingSummaries();
+    if (currentAccountId === accountId) loadMeetingSummaries(accountId);
+  }).catch(function(err) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = "שייך";
+    showError("לא ניתן לשייך תקציר — " + JSON.stringify(err));
+  });
+}
+
+document.getElementById("assignSummaryModal").addEventListener("click", function(e) {
+  if (e.target === this) closeAssignSummaryModal();
+});
 
 function renderHomeTasks(tasks) {
   document.getElementById("homeTaskCount").textContent = tasks.length;
@@ -1316,11 +1521,14 @@ function homeMeetingCardHtml(m) {
   var clientId   = m.What_Id && m.What_Id.id   ? m.What_Id.id   : "";
   var joinUrl    = m.$meeting_details && m.$meeting_details.joinmeeting_url;
   var isDone     = m.Status === "Completed";
+  var upcoming   = m.Start_DateTime && new Date(m.Start_DateTime) >= new Date();
+  var needsRecap = !upcoming && isOnlineMeeting(m) && !homeSummarizedIds.has(m.id);
   return '<div class="action-card' + (isDone ? ' done-action' : '') + '">' +
     '<div class="action-header">' +
       '<div class="action-title">' + esc(title) + '</div>' +
       (m.Start_DateTime ? '<span class="meeting-date upcoming">' + fmtDateTime(m.Start_DateTime) + '</span>' : '') +
       (isToday(m.Start_DateTime) ? '<span class="badge badge-today">היום</span>' : '') +
+      (needsRecap ? '<span class="badge badge-recap">⚠ ממתין לתקציר</span>' : '') +
     '</div>' +
     '<div class="action-footer">' +
       '<button class="edit-meeting-btn delete-meeting-btn" data-meeting-id="' + esc(m.id) + '">🗑 בטל פגישה</button>' +

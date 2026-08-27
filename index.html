@@ -60,72 +60,99 @@
 
 <main id="mainPanels" class="hidden">
   <!-- TASKS -->
-  <div class="panel">
+  <div class="panel" data-panel-id="tasks">
     <div class="panel-head">
       <div class="panel-icon icon-tasks">📋</div>
       <div class="panel-title" id="taskPanelTitle">משימות פתוחות</div>
       <button class="add-meeting-btn" onclick="openTaskModal(null)">+ משימה</button>
       <div class="panel-count" id="taskCount">—</div>
+      <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
     </div>
-    <div class="filter-bar" id="taskFilters">
-      <button class="filter-btn active-t" data-f="all">הכל</button>
-      <button class="filter-btn" data-f="high">עדיפות גבוהה</button>
-      <button class="filter-btn" data-f="overdue">באיחור</button>
-      <button class="filter-btn" data-f="archive">הושלמו</button>
-    </div>
-    <div class="item-list" id="taskList">
-      <div class="empty-state"><div class="empty-icon">📋</div><div>בחר לקוח לטעינת משימות</div></div>
+    <div class="panel-body">
+      <div class="filter-bar" id="taskFilters">
+        <button class="filter-btn active-t" data-f="all">הכל</button>
+        <button class="filter-btn" data-f="high">עדיפות גבוהה</button>
+        <button class="filter-btn" data-f="overdue">באיחור</button>
+        <button class="filter-btn" data-f="archive">הושלמו</button>
+      </div>
+      <div class="item-list" id="taskList">
+        <div class="empty-state"><div class="empty-icon">📋</div><div>בחר לקוח לטעינת משימות</div></div>
+      </div>
     </div>
   </div>
 
   <!-- NOTES -->
-  <div class="panel">
+  <div class="panel" data-panel-id="notes">
     <div class="panel-head">
       <div class="panel-icon icon-notes">📝</div>
       <div class="panel-title">הערות</div>
       <button class="add-meeting-btn" onclick="openNoteModal()">+ הערה</button>
       <div class="panel-count" id="noteCount">—</div>
+      <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
     </div>
-    <div class="filter-bar" id="noteFilters">
-      <button class="filter-btn active-n" data-f="all">הכל</button>
-      <button class="filter-btn" data-f="recent">אחרון</button>
-    </div>
-    <div class="item-list" id="noteList">
-      <div class="empty-state"><div class="empty-icon">📝</div><div>בחר לקוח לטעינת הערות</div></div>
+    <div class="panel-body">
+      <div class="filter-bar" id="noteFilters">
+        <button class="filter-btn active-n" data-f="all">הכל</button>
+        <button class="filter-btn" data-f="recent">אחרון</button>
+      </div>
+      <div class="item-list" id="noteList">
+        <div class="empty-state"><div class="empty-icon">📝</div><div>בחר לקוח לטעינת הערות</div></div>
+      </div>
     </div>
   </div>
 
   <!-- MEETINGS -->
-  <div class="panel">
+  <div class="panel" data-panel-id="meetings">
     <div class="panel-head">
       <div class="panel-icon icon-actions">📅</div>
       <div class="panel-title">פגישות</div>
       <button class="add-meeting-btn" id="addMeetingBtn" onclick="openMeetingModal(null)">+ פגישה</button>
       <div class="panel-count" id="actionCount">—</div>
+      <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
     </div>
-    <div class="filter-bar" id="meetingTimeFilters">
-      <button class="filter-btn active-a" data-tf="upcoming">עתידיות</button>
-      <button class="filter-btn" data-tf="past">קודמות</button>
+    <div class="panel-body">
+      <div class="filter-bar" id="meetingTimeFilters">
+        <button class="filter-btn active-a" data-tf="upcoming">עתידיות</button>
+        <button class="filter-btn" data-tf="past">קודמות</button>
+      </div>
+      <div class="item-list" id="actionList">
+        <div class="empty-state"><div class="empty-icon">📅</div><div>בחר לקוח לטעינת פגישות</div></div>
+      </div>
     </div>
-    <div class="item-list" id="actionList">
-      <div class="empty-state"><div class="empty-icon">📅</div><div>בחר לקוח לטעינת פגישות</div></div>
+  </div>
+
+  <!-- MEETING SUMMARIES -->
+  <div class="panel" data-panel-id="summaries">
+    <div class="panel-head">
+      <div class="panel-icon icon-summaries">🧾</div>
+      <div class="panel-title">תקצירי פגישות</div>
+      <div class="panel-count" id="summaryCount">—</div>
+      <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
+    </div>
+    <div class="panel-body">
+      <div class="item-list" id="summaryList">
+        <div class="empty-state"><div class="empty-icon">🧾</div><div>בחר לקוח לטעינת תקצירי פגישות</div></div>
+      </div>
     </div>
   </div>
 </main>
 
 <!-- HOME VIEW -->
 <div id="homeView">
-  <div class="panel">
+  <div class="panel" data-panel-id="home-tasks">
     <div class="panel-head">
       <div class="panel-icon icon-tasks">📋</div>
       <div class="panel-title">משימות פתוחות</div>
       <div class="panel-count" id="homeTaskCount">—</div>
+      <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
     </div>
-    <div class="item-list" id="homeTaskList">
-      <div class="loading-state"><div class="spinner"></div><div>טוען משימות...</div></div>
+    <div class="panel-body">
+      <div class="item-list" id="homeTaskList">
+        <div class="loading-state"><div class="spinner"></div><div>טוען משימות...</div></div>
+      </div>
     </div>
   </div>
-  <div class="panel">
+  <div class="panel" data-panel-id="home-meetings">
     <div class="panel-head">
       <div class="panel-icon icon-actions">📅</div>
       <div class="panel-title" id="homeMeetingPanelTitle">פגישות עתידיות</div>
@@ -134,15 +161,31 @@
         <button class="view-toggle-btn" data-view="calendar">🗓 לוח שנה</button>
       </div>
       <div class="panel-count" id="homeMeetingCount">—</div>
+      <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
     </div>
-    <div class="filter-bar" id="homeMeetingTimeFilters">
-      <button class="filter-btn active-a" data-tf="upcoming">עתידיות</button>
-      <button class="filter-btn" data-tf="past">קודמות</button>
+    <div class="panel-body">
+      <div class="filter-bar" id="homeMeetingTimeFilters">
+        <button class="filter-btn active-a" data-tf="upcoming">עתידיות</button>
+        <button class="filter-btn" data-tf="past">קודמות</button>
+      </div>
+      <div class="item-list" id="homeMeetingList">
+        <div class="loading-state"><div class="spinner"></div><div>טוען פגישות...</div></div>
+      </div>
+      <div class="calendar-view hidden" id="homeMeetingCalendar"></div>
     </div>
-    <div class="item-list" id="homeMeetingList">
-      <div class="loading-state"><div class="spinner"></div><div>טוען פגישות...</div></div>
+  </div>
+  <div class="panel" data-panel-id="home-pending">
+    <div class="panel-head">
+      <div class="panel-icon icon-summaries">🧾</div>
+      <div class="panel-title">תקצירים ממתינים לשיוך</div>
+      <div class="panel-count" id="pendingSummaryCount">—</div>
+      <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
     </div>
-    <div class="calendar-view hidden" id="homeMeetingCalendar"></div>
+    <div class="panel-body">
+      <div class="item-list" id="pendingSummaryList">
+        <div class="loading-state"><div class="spinner"></div><div>טוען...</div></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -374,6 +417,24 @@
     <div class="modal-actions">
       <button class="btn-save" id="saveContactBtn" onclick="saveContact()">שמור</button>
       <button class="btn-cancel" onclick="closeContactModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSIGN SUMMARY MODAL -->
+<div class="modal-backdrop" id="assignSummaryModal">
+  <div class="modal">
+    <div class="modal-title">שיוך תקציר ללקוח</div>
+    <div class="modal-subtitle" id="assignSummarySubject"></div>
+    <div class="form-group">
+      <label for="assignSummaryClientSelect">לקוח</label>
+      <select id="assignSummaryClientSelect">
+        <option value="">— בחר לקוח —</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-save" id="saveAssignSummaryBtn" onclick="saveAssignSummary()">שייך</button>
+      <button class="btn-cancel" onclick="closeAssignSummaryModal()">ביטול</button>
     </div>
   </div>
 </div>

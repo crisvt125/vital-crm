@@ -156,7 +156,9 @@ the debug console).
 **Matching**: search Events by `Online_Meeting_External_UUID__s` (the real,
 read-only field Zoho populates once a Teams meeting is actually
 provisioned — see "Online meeting provisioning" above) against the Teams
-meeting's UUID.
+meeting's UUID. Falls back to `Imported_Teams_Meeting_Id` (see "Importing
+an external meeting" below) for meetings that were never provisioned
+through this widget at all.
 
 - **Matched** — insert a Meeting Summary record with `Account` set to that
   Event's account and `Source_Event_Id` set to that Event's `id`.
@@ -224,6 +226,32 @@ would be lost if the meeting is later deleted (`deleteMeeting()` already
 exists in this app), and a single accumulating text field on the Account
 would eventually hit Zoho's ~32K character field cap for an active client.
 A dedicated module with one record per summary has neither problem.
+
+## Importing an external meeting
+
+Meetings created directly in Outlook/Teams (not via this widget's "+ פגישה")
+have no Zoho Event at all, so the summary pipeline can never match them. The
+"+ ייבוא פגישה" button next to it (client Meetings panel) covers this: enter
+the subject/start/end and paste the meeting's Teams join link, and it
+`insertRecord`s a plain Event — **without** `$meeting_details`, since the
+meeting already exists externally and must not trigger Zoho's own
+(re-)provisioning.
+
+The pasted link is normalized with `normalizeTeamsJoinUrl()` in `app.js`
+before being stored in a new custom Events field, `Imported_Teams_Meeting_Id`
+(single-line text) — it extracts just the `meetup-join/<core-id>` segment
+(URL-decoded), ignoring host/query-string/tracking-param differences between
+however the link was copied. `teams-pipeline`'s `zoho_client.
+normalize_teams_join_url()` implements the identical rule in Python (see that
+repo's README) — both sides need to stay in sync, since a plain equality
+search against Zoho depends on the two normalizing the same way.
+
+An imported meeting has no `Meeting_Venue__s`/`Meeting_Provider__s` (Zoho
+would silently revert any manual write to those — see "Online meeting
+provisioning" above), so `isOnlineMeeting()` and the meeting-card join-link
+rendering (`getJoinUrl()`) both also check `Imported_Teams_Meeting_Id`
+directly, and `getJoinUrl()` reconstructs a usable link from it when
+`$meeting_details.joinmeeting_url` isn't present.
 
 ## Deploying
 

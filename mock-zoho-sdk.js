@@ -105,6 +105,12 @@
           Status: "Not Started", What_Id: refB, $se_module: "Accounts", Owner: owner,
           Meeting_Venue__s: "Online", Meeting_Provider__s: "Microsoft Teams",
           $meeting_details: { joinmeeting_url: "https://teams.microsoft.com/l/meetup-join/mock-needs-recap" }
+        },
+        {
+          id: uid("evt"), Event_Title: "פגישה שנקבעה ישירות ב-Outlook", Description: "",
+          Start_DateTime: daysFromNow(-3, 15, 0), End_DateTime: daysFromNow(-3, 15, 30),
+          Status: "Not Started", What_Id: refC, $se_module: "Accounts", Owner: owner,
+          Imported_Teams_Meeting_Id: "19:meeting_mockimported@thread.v2"
         }
       ],
       Meeting_Summaries: [
@@ -343,6 +349,7 @@
       { api_name: "Meeting_Provider__s", field_label: "Meeting Provider", data_type: "picklist", pick_list_values: pick(["Microsoft Teams", "Zoho Meeting"]) },
       { api_name: "Participants", field_label: "Participants", data_type: "multiselectlookup" },
       { api_name: "What_Id", field_label: "Related To", data_type: "lookup" },
+      { api_name: "Imported_Teams_Meeting_Id", field_label: "Imported Teams Meeting Id", data_type: "text" },
       { api_name: "Owner", field_label: "Owner", data_type: "ownerlookup" }
     ],
     Tasks: [

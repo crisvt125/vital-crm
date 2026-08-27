@@ -124,8 +124,28 @@ function isOnlineMeeting(m) {
   return !!(m && (
     (m.$meeting_details && m.$meeting_details.joinmeeting_url) ||
     m.Meeting_Provider__s ||
-    m.Meeting_Venue__s === "Online"
+    m.Meeting_Venue__s === "Online" ||
+    m.Imported_Teams_Meeting_Id
   ));
+}
+
+// Extracts the core meeting-thread id (e.g. "19:meeting_XXXX@thread.v2") out of
+// a Teams join URL, ignoring host/query-string/tracking-param differences —
+// identical rule to teams-pipeline's zoho_client.normalize_teams_join_url(),
+// so an imported meeting can be matched later regardless of how the link was
+// copied. Keep the two in sync if either changes (see both READMEs).
+function normalizeTeamsJoinUrl(url) {
+  const m = /meetup-join\/([^/?]+)/i.exec(url || "");
+  return m ? decodeURIComponent(m[1]) : (url || "").trim();
+}
+
+// Reconstructs a usable join link from the normalized id stored on an
+// imported meeting, since $meeting_details.joinmeeting_url only exists for
+// meetings Zoho itself provisioned.
+function getJoinUrl(m) {
+  if (m.$meeting_details && m.$meeting_details.joinmeeting_url) return m.$meeting_details.joinmeeting_url;
+  if (m.Imported_Teams_Meeting_Id) return "https://teams.microsoft.com/l/meetup-join/" + encodeURIComponent(m.Imported_Teams_Meeting_Id);
+  return "";
 }
 
 // ── FILTERS ───────────────────────────────────────────────────
@@ -673,7 +693,7 @@ function renderActivities() {
     const desc      = (a.Description || "").trim();
     const meetDate  = a.Start_DateTime || "";
     const upcoming  = meetDate && new Date(meetDate) >= now;
-    const joinUrl   = a.$meeting_details && a.$meeting_details.joinmeeting_url;
+    const joinUrl   = getJoinUrl(a);
     const needsRecap = !upcoming && isOnlineMeeting(a) && !summarizedIds.has(a.id);
     return `
       <div class="action-card ${done?"done-action":""}">
@@ -847,7 +867,7 @@ document.getElementById("noteModal").addEventListener("click", function(e) {
 });
 
 // ── MEETING MODAL ─────────────────────────────────────────────
-let fpStart = null, fpEnd = null, fpTaskDue = null;
+let fpStart = null, fpEnd = null, fpTaskDue = null, fpImportStart = null, fpImportEnd = null;
 
 const heLocale = {
   weekdays: {
@@ -907,6 +927,69 @@ function initTaskFlatpickr() {
   if (fpTaskDue) return;
   fpTaskDue = flatpickr("#taskDueDate", { dateFormat: "Y-m-d", locale: heLocale, disableMobile: true, appendTo: document.body });
 }
+
+function initImportMeetingFlatpickr() {
+  if (fpImportStart) return;
+  const cfg = { enableTime: true, time_24hr: true, dateFormat: "Y-m-d H:i",
+                locale: heLocale, disableMobile: true, appendTo: document.body };
+  fpImportStart = flatpickr("#importMeetingStart", cfg);
+  fpImportEnd = flatpickr("#importMeetingEnd", cfg);
+}
+
+// ── IMPORT MEETING MODAL ──────────────────────────────────────
+function openImportMeetingModal() {
+  if (!currentAccountId) { showError("יש לבחור לקוח תחילה"); return; }
+  initImportMeetingFlatpickr();
+  document.getElementById("importMeetingSubject").value = "";
+  document.getElementById("importMeetingJoinUrl").value = "";
+  fpImportStart.clear();
+  fpImportEnd.clear();
+  const saveBtn = document.getElementById("saveImportMeetingBtn");
+  saveBtn.disabled = false;
+  saveBtn.textContent = "ייבוא";
+  document.getElementById("importMeetingModal").classList.add("open");
+  setTimeout(function() { document.getElementById("importMeetingSubject").focus(); }, 50);
+}
+
+function closeImportMeetingModal() {
+  document.getElementById("importMeetingModal").classList.remove("open");
+}
+
+function saveImportMeeting() {
+  const subject = document.getElementById("importMeetingSubject").value.trim();
+  const start   = document.getElementById("importMeetingStart").value;
+  const end     = document.getElementById("importMeetingEnd").value;
+  const joinUrlRaw = document.getElementById("importMeetingJoinUrl").value.trim();
+  if (!subject) { document.getElementById("importMeetingSubject").focus(); return; }
+  if (!start)   { document.getElementById("importMeetingStart").focus(); return; }
+  if (!joinUrlRaw) { document.getElementById("importMeetingJoinUrl").focus(); return; }
+
+  const saveBtn = document.getElementById("saveImportMeetingBtn");
+  saveBtn.disabled = true;
+  saveBtn.textContent = "מייבא...";
+
+  const apiData = {
+    Event_Title: subject,
+    Start_DateTime: toZohoDT(start),
+    End_DateTime: toZohoDT(end || start),
+    Imported_Teams_Meeting_Id: normalizeTeamsJoinUrl(joinUrlRaw),
+    What_Id: currentAccountId,
+    $se_module: "Accounts"
+  };
+
+  ZOHO.CRM.API.insertRecord({ Entity: "Events", APIData: apiData }).then(function() {
+    closeImportMeetingModal();
+    reloadActivities();
+  }).catch(function(err) {
+    saveBtn.disabled = false;
+    saveBtn.textContent = "ייבוא";
+    showError("לא ניתן לייבא פגישה — " + JSON.stringify(err));
+  });
+}
+
+document.getElementById("importMeetingModal").addEventListener("click", function(e) {
+  if (e.target === this) closeImportMeetingModal();
+});
 
 function toZohoDT(dtStr) {
   if (!dtStr) return "";
@@ -1340,7 +1423,7 @@ document.getElementById("meetingModal").addEventListener("click", function(e) {
   if (e.target === this) closeMeetingModal();
 });
 document.addEventListener("keydown", function(e) {
-  if (e.key === "Escape") { closeRemarkModal(); closeMeetingModal(); }
+  if (e.key === "Escape") { closeRemarkModal(); closeMeetingModal(); closeImportMeetingModal(); }
 });
 
 // ── HOME VIEW ─────────────────────────────────────────────────
@@ -1519,7 +1602,7 @@ function homeMeetingCardHtml(m) {
   var title      = m.Event_Title || m.Subject || "פגישה";
   var clientName = m.What_Id && m.What_Id.name ? m.What_Id.name : "";
   var clientId   = m.What_Id && m.What_Id.id   ? m.What_Id.id   : "";
-  var joinUrl    = m.$meeting_details && m.$meeting_details.joinmeeting_url;
+  var joinUrl    = getJoinUrl(m);
   var isDone     = m.Status === "Completed";
   var upcoming   = m.Start_DateTime && new Date(m.Start_DateTime) >= new Date();
   var needsRecap = !upcoming && isOnlineMeeting(m) && !homeSummarizedIds.has(m.id);

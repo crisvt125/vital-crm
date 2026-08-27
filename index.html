@@ -107,6 +107,7 @@
       <div class="panel-icon icon-actions">📅</div>
       <div class="panel-title">פגישות</div>
       <button class="add-meeting-btn" id="addMeetingBtn" onclick="openMeetingModal(null)">+ פגישה</button>
+      <button class="add-meeting-btn" onclick="openImportMeetingModal()">+ ייבוא פגישה</button>
       <div class="panel-count" id="actionCount">—</div>
       <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
     </div>
@@ -256,6 +257,36 @@
     <div class="modal-actions">
       <button class="btn-save" id="saveMeetingBtn" onclick="saveMeeting()">שמור</button>
       <button class="btn-cancel" onclick="closeMeetingModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MEETING MODAL -->
+<div class="modal-backdrop" id="importMeetingModal">
+  <div class="modal">
+    <div class="modal-title">ייבוא פגישה קיימת</div>
+    <div class="modal-subtitle">לפגישה שכבר נוצרה ישירות ב-Outlook/Teams — לא תבוצע הפעלה חדשה של Teams, רק תיעוד ב-CRM.</div>
+    <div class="form-group">
+      <label for="importMeetingSubject">נושא</label>
+      <input type="text" id="importMeetingSubject" placeholder="נושא הפגישה...">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="importMeetingStart">התחלה</label>
+        <input type="text" id="importMeetingStart" placeholder="בחר תאריך ושעה..." readonly>
+      </div>
+      <div class="form-group">
+        <label for="importMeetingEnd">סיום</label>
+        <input type="text" id="importMeetingEnd" placeholder="בחר תאריך ושעה..." readonly>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="importMeetingJoinUrl">קישור הצטרפות ל-Teams</label>
+      <input type="text" id="importMeetingJoinUrl" placeholder="הדבק כאן את קישור ה-Teams מההזמנה...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-save" id="saveImportMeetingBtn" onclick="saveImportMeeting()">ייבוא</button>
+      <button class="btn-cancel" onclick="closeImportMeetingModal()">ביטול</button>
     </div>
   </div>
 </div>

@@ -1057,6 +1057,7 @@ function openMeetingModal(meetingId) {
     meetingParticipantEmails = [];
   }
   document.getElementById("meetingParticipantInput").value = "";
+  hideParticipantSuggestions();
   renderMeetingParticipantChips();
   renderMeetingContactSelect();
   document.getElementById("meetingReminder").value = reminderValueFromRemindAt(meeting && meeting.Remind_At, meeting && meeting.Start_DateTime);
@@ -1073,6 +1074,7 @@ function closeMeetingModal() {
   meetingParticipantEmails = [];
   renderMeetingParticipantChips();
   document.getElementById("meetingParticipantInput").value = "";
+  hideParticipantSuggestions();
   if (fpStart) fpStart.clear();
   if (fpEnd)   fpEnd.clear();
   document.getElementById("meetingDurationCustomOpt").hidden = true;
@@ -1123,11 +1125,104 @@ document.getElementById("meetingParticipantChips").addEventListener("click", fun
   renderMeetingContactSelect();
 });
 
+// ── PARTICIPANT AUTOCOMPLETE (Zoho Contacts, org-wide) ─────────
+let participantSearchTimer = null;
+let participantSuggestions = [];
+let participantActiveIndex = -1;
+
+function hideParticipantSuggestions() {
+  document.getElementById("meetingParticipantSuggestions").classList.add("hidden");
+  participantSuggestions = [];
+  participantActiveIndex = -1;
+}
+
+function renderParticipantSuggestions(results) {
+  participantSuggestions = results;
+  participantActiveIndex = -1;
+  const box = document.getElementById("meetingParticipantSuggestions");
+  if (!results.length) {
+    box.innerHTML = '<div class="autocomplete-empty">אין תוצאות</div>';
+  } else {
+    box.innerHTML = results.map(function(c, i) {
+      const name = [c.First_Name, c.Last_Name].filter(Boolean).join(" ") || c.Email;
+      return `<div class="autocomplete-item" data-index="${i}">
+        <div class="autocomplete-item-name">${esc(name)}</div>
+        <div class="autocomplete-item-email">${esc(c.Email)}</div>
+      </div>`;
+    }).join("");
+  }
+  box.classList.remove("hidden");
+}
+
+function updateActiveSuggestion() {
+  document.querySelectorAll("#meetingParticipantSuggestions .autocomplete-item").forEach(function(el, i) {
+    el.classList.toggle("active", i === participantActiveIndex);
+    if (i === participantActiveIndex) el.scrollIntoView({ block: "nearest" });
+  });
+}
+
+function selectParticipantSuggestion(idx) {
+  const c = participantSuggestions[idx];
+  if (!c || !c.Email) return;
+  addMeetingParticipant(c.Email);
+  document.getElementById("meetingParticipantInput").value = "";
+  hideParticipantSuggestions();
+}
+
+function searchParticipantContacts(query) {
+  ZOHO.CRM.API.searchRecords({ Entity: "Contacts", Type: "word", Query: query, page: 1, per_page: 8 })
+    .then(function(resp) {
+      const results = (resp.data || []).filter(function(c) {
+        return c.Email && meetingParticipantEmails.indexOf(c.Email) === -1;
+      });
+      renderParticipantSuggestions(results);
+    })
+    .catch(function(err) {
+      dbg("searchParticipantContacts ✗", err, true);
+      hideParticipantSuggestions();
+    });
+}
+
+document.getElementById("meetingParticipantInput").addEventListener("input", function() {
+  const query = this.value.trim();
+  clearTimeout(participantSearchTimer);
+  if (query.length < 2) { hideParticipantSuggestions(); return; }
+  participantSearchTimer = setTimeout(function() { searchParticipantContacts(query); }, 250);
+});
+
+document.getElementById("meetingParticipantInput").addEventListener("blur", function() {
+  // Delayed so a click/mousedown on a suggestion below still registers first.
+  setTimeout(hideParticipantSuggestions, 150);
+});
+
+document.getElementById("meetingParticipantSuggestions").addEventListener("mousedown", function(e) {
+  const item = e.target.closest(".autocomplete-item");
+  if (item) selectParticipantSuggestion(Number(item.dataset.index));
+});
+
 document.getElementById("meetingParticipantInput").addEventListener("keydown", function(e) {
+  const suggestionsOpen = !document.getElementById("meetingParticipantSuggestions").classList.contains("hidden")
+    && participantSuggestions.length;
+
+  if (suggestionsOpen && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+    e.preventDefault();
+    const n = participantSuggestions.length;
+    participantActiveIndex = (participantActiveIndex + (e.key === "ArrowDown" ? 1 : -1) + n) % n;
+    updateActiveSuggestion();
+    return;
+  }
+  if (suggestionsOpen && e.key === "Enter" && participantActiveIndex >= 0) {
+    e.preventDefault();
+    selectParticipantSuggestion(participantActiveIndex);
+    return;
+  }
+  if (e.key === "Escape") { hideParticipantSuggestions(); return; }
+
   if (e.key === "Enter" || e.key === ",") {
     e.preventDefault();
     addMeetingParticipant(this.value);
     this.value = "";
+    hideParticipantSuggestions();
   }
 });
 

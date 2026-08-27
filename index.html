@@ -238,7 +238,10 @@
       <select id="meetingContactSelect">
         <option value="">+ הוסף איש קשר...</option>
       </select>
-      <input type="text" id="meetingParticipantInput" placeholder="או הקלד אימייל ולחץ Enter...">
+      <div class="autocomplete-wrap">
+        <input type="text" id="meetingParticipantInput" placeholder="הקלד שם או אימייל..." autocomplete="off">
+        <div class="autocomplete-list hidden" id="meetingParticipantSuggestions"></div>
+      </div>
     </div>
     <div class="form-group">
       <label for="meetingReminder">תזכורת</label>

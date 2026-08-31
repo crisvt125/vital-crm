@@ -104,6 +104,11 @@
   .pill-tasks   { background: var(--blue-lt);  color: var(--blue);  }
   .pill-notes   { background: var(--teal-lt);  color: var(--teal);  }
   .pill-actions { background: var(--amber-lt); color: var(--amber); }
+  .pill-summaries {
+    background: var(--purple-lt); color: var(--purple);
+    border: none; cursor: pointer; font-family: inherit; transition: all .12s;
+  }
+  .pill-summaries:hover { background: var(--purple); color: #fff; }
 
   /* CONTACTS BAR */
   .contacts-bar { background: var(--white); border-bottom: 1px solid var(--gray-100); padding: 8px 20px; display: flex; align-items: center; gap: 10px; overflow-x: auto; }
@@ -190,7 +195,12 @@
   .action-card { border-right: 3px solid var(--amber); }
   .action-card.done-action { border-right-color: var(--green); }
   .task-card { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; flex-wrap: wrap; }
-  .task-title { font-size: 13px; font-weight: 600; color: var(--gray-900); line-height: 1.4; flex: 1 1 100px; min-width: 60px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task-title {
+    font-size: 14.5px; font-weight: 700; color: var(--gray-900); line-height: 1.35;
+    flex: 1 1 160px; min-width: 120px;
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
+    overflow: hidden; text-overflow: ellipsis;
+  }
   .badge { border-radius: 4px; padding: 1px 6px; font-size: 10.5px; font-weight: 600; flex-shrink: 0; }
   .badge-high   { background: var(--red-lt);   color: var(--red);   }
   .badge-med    { background: var(--amber-lt);  color: var(--amber); }
@@ -272,7 +282,7 @@
     .subheader { flex-direction: column; align-items: flex-start; gap: 8px; }
     .stat-pills { flex-wrap: wrap; }
     .contacts-bar { padding: 8px 16px; }
-    .panel-head { padding: 12px 14px 8px; }
+    .panel-head { padding: 12px 14px 8px; cursor: pointer; }
     .panel-title { flex-basis: 100%; order: -1; white-space: normal; }
     .view-toggle-btn { padding: 3px 6px; font-size: 10px; }
     .add-meeting-btn { font-size: 10.5px; padding: 3px 8px; }
@@ -323,7 +333,10 @@
     max-height: calc(100vh - 48px);
     overflow-y: auto;
   }
+  .modal-wide { max-width: 640px; }
+  .modal-wide .item-list { max-height: 55vh; overflow-y: auto; padding: 0; }
   .modal-title { font-size: 15px; font-weight: 700; color: var(--gray-900); }
+  .modal-title #summaryModalClientName { color: var(--gray-500); font-weight: 500; }
   .modal-subtitle { font-size: 12px; color: var(--gray-500); }
   .modal textarea {
     width: 100%; border: 1px solid var(--gray-100);

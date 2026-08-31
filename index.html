@@ -49,6 +49,7 @@
     <div class="stat-pill pill-tasks">📋 <span id="statTasks">—</span> משימות</div>
     <div class="stat-pill pill-notes">📝 <span id="statNotes">—</span> הערות</div>
     <div class="stat-pill pill-actions">📅 <span id="statActions">—</span> פגישות</div>
+    <button class="stat-pill pill-summaries" onclick="openMeetingSummariesModal()">🧾 <span id="statSummaries">—</span> תקצירים</button>
   </div>
 </div>
 
@@ -122,20 +123,6 @@
     </div>
   </div>
 
-  <!-- MEETING SUMMARIES -->
-  <div class="panel" data-panel-id="summaries">
-    <div class="panel-head">
-      <div class="panel-icon icon-summaries">🧾</div>
-      <div class="panel-title">תקצירי פגישות</div>
-      <div class="panel-count" id="summaryCount">—</div>
-      <button class="panel-collapse-toggle" aria-label="כווץ/הרחב">▾</button>
-    </div>
-    <div class="panel-body">
-      <div class="item-list" id="summaryList">
-        <div class="empty-state"><div class="empty-icon">🧾</div><div>בחר לקוח לטעינת תקצירי פגישות</div></div>
-      </div>
-    </div>
-  </div>
 </main>
 
 <!-- HOME VIEW -->
@@ -451,6 +438,17 @@
     <div class="modal-actions">
       <button class="btn-save" id="saveContactBtn" onclick="saveContact()">שמור</button>
       <button class="btn-cancel" onclick="closeContactModal()">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- MEETING SUMMARIES MODAL -->
+<div class="modal-backdrop" id="meetingSummariesModal">
+  <div class="modal modal-wide">
+    <div class="modal-title">תקצירי פגישות<span id="summaryModalClientName"></span></div>
+    <div class="item-list" id="summaryModalList"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeMeetingSummariesModal()">סגור</button>
     </div>
   </div>
 </div>

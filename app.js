@@ -180,9 +180,12 @@ function initCollapsiblePanels() {
     const stored = localStorage.getItem(key);
     const collapsed = stored === null ? true : stored === "1";
     panel.classList.toggle("collapsed", collapsed);
-    const toggle = panel.querySelector(".panel-collapse-toggle");
-    if (!toggle) return;
-    toggle.addEventListener("click", function() {
+    const head = panel.querySelector(".panel-head");
+    if (!head) return;
+    head.addEventListener("click", function(e) {
+      // Let real header buttons (+ משימה, list/calendar toggle, etc.) do their own thing —
+      // only bare-bar taps (or the arrow itself) should collapse/expand.
+      if (e.target.closest("button:not(.panel-collapse-toggle)")) return;
       const nowCollapsed = !panel.classList.contains("collapsed");
       panel.classList.toggle("collapsed", nowCollapsed);
       localStorage.setItem(key, nowCollapsed ? "1" : "0");
@@ -278,6 +281,7 @@ function showHomeView() {
   sessionStorage.removeItem("crm_lastAccountId");
   setClientStatusSelect("");
   document.getElementById("clientStatusSelect").disabled = true;
+  document.getElementById("statSummaries").textContent = "—";
 }
 
 // ── CLIENT STATUS ─────────────────────────────────────────────
@@ -409,7 +413,7 @@ function loadClientData(id, meta) {
   setClientStatusSelect(meta.status || "");
   document.getElementById("clientStatusSelect").disabled = false;
 
-  ["statTasks","statNotes","statActions"].forEach(function(s) {
+  ["statTasks","statNotes","statActions","statSummaries"].forEach(function(s) {
     document.getElementById(s).textContent = "…";
   });
 
@@ -417,7 +421,7 @@ function loadClientData(id, meta) {
   showSpinner("taskList");
   showSpinner("noteList");
   showSpinner("actionList");
-  showSpinner("summaryList");
+  showSpinner("summaryModalList");
 
   Promise.all([
     ZOHO.CRM.API.getRelatedRecords({ Entity:"Accounts", RecordID:id, RelatedList:"Tasks", page:1, per_page:50 }),
@@ -466,9 +470,9 @@ function loadMeetingSummaries(accountId) {
 
 function renderMeetingSummaries() {
   const items = [...allMeetingSummaries].sort((a, b) => new Date(b.Meeting_Date || 0) - new Date(a.Meeting_Date || 0));
-  document.getElementById("summaryCount").textContent = allMeetingSummaries.length;
+  document.getElementById("statSummaries").textContent = allMeetingSummaries.length;
 
-  const list = document.getElementById("summaryList");
+  const list = document.getElementById("summaryModalList");
   if (!items.length) {
     list.innerHTML = '<div class="empty-state"><div class="empty-icon">🧾</div><div>אין תקצירי פגישות עדיין</div></div>';
     return;
@@ -487,6 +491,21 @@ function renderMeetingSummaries() {
       </div>`;
   }).join("");
 }
+
+function openMeetingSummariesModal() {
+  if (!currentAccountId) { showError("יש לבחור לקוח תחילה"); return; }
+  document.getElementById("summaryModalClientName").textContent =
+    " — " + document.getElementById("clientName").textContent;
+  document.getElementById("meetingSummariesModal").classList.add("open");
+}
+
+function closeMeetingSummariesModal() {
+  document.getElementById("meetingSummariesModal").classList.remove("open");
+}
+
+document.getElementById("meetingSummariesModal").addEventListener("click", function(e) {
+  if (e.target === this) closeMeetingSummariesModal();
+});
 
 // ── CONTACTS ──────────────────────────────────────────────────
 function loadContacts(accountId) {
@@ -1518,7 +1537,7 @@ document.getElementById("meetingModal").addEventListener("click", function(e) {
   if (e.target === this) closeMeetingModal();
 });
 document.addEventListener("keydown", function(e) {
-  if (e.key === "Escape") { closeRemarkModal(); closeMeetingModal(); closeImportMeetingModal(); }
+  if (e.key === "Escape") { closeRemarkModal(); closeMeetingModal(); closeImportMeetingModal(); closeMeetingSummariesModal(); }
 });
 
 // ── HOME VIEW ─────────────────────────────────────────────────

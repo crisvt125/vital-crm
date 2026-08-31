@@ -297,7 +297,8 @@
   @media (max-width: 768px) {
     header { padding: 8px 16px; }
     .header-sep { display: none; }
-    .header-date { width: 100%; margin-right: 0; font-size: 11px; }
+    .header-date { display: none; }
+    .logo { height: 44px; }
     .subheader { flex-direction: column; align-items: flex-start; gap: 8px; }
     .stat-pills { flex-wrap: wrap; }
     .contacts-bar { padding: 8px 16px; }
@@ -344,6 +345,12 @@
     padding: 24px 0;
   }
   .modal-backdrop.open { display: flex; }
+  @media (max-width: 768px) {
+    /* A tall form (e.g. New Client) overflowing a center-aligned flex
+       backdrop collapses to the very top with no breathing room — anchor
+       to the top with consistent padding instead. */
+    .modal-backdrop { align-items: flex-start; padding: 16px 0; }
+  }
   .modal {
     background: var(--white); border-radius: var(--radius);
     padding: 20px; width: 90%; max-width: 440px;

@@ -194,13 +194,13 @@
   .task-card:hover, .note-card:hover, .action-card:hover, .summary-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
   .action-card { border-right: 3px solid var(--amber); }
   .action-card.done-action { border-right-color: var(--green); }
-  .task-card { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; flex-wrap: wrap; }
+  .task-card { display: flex; flex-direction: column; gap: 6px; }
   .task-title {
     font-size: 14.5px; font-weight: 700; color: var(--gray-900); line-height: 1.35;
-    flex: 1 1 160px; min-width: 120px;
     display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
     overflow: hidden; text-overflow: ellipsis;
   }
+  .task-meta { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; flex-wrap: wrap; }
   .badge { border-radius: 4px; padding: 1px 6px; font-size: 10.5px; font-weight: 600; flex-shrink: 0; }
   .badge-high   { background: var(--red-lt);   color: var(--red);   }
   .badge-med    { background: var(--amber-lt);  color: var(--amber); }

@@ -627,20 +627,22 @@ function renderTasks() {
     const bc  = p === "high" ? "badge-high" : p === "low" ? "badge-low" : "badge-med";
     return `
       <div class="task-card${isArchive?" task-archived":""}">
-        ${isArchive
-          ? '<span class="done-check">✓</span>'
-          : `<button class="done-btn" data-task-id="${esc(t.id)}" title="סמן כהושלם">✓</button>`}
         <div class="task-title">${esc(t.Subject || "משימה ללא שם")}</div>
-        ${isArchive
-          ? '<span class="badge badge-closed">הושלם</span>'
-          : `<span class="badge ${bc}">${priorityHe(t.Priority)}</span>`}
-        ${due ? `<span class="due-date ${ov&&!isArchive?"overdue":""}">${fmtDate(due)}</span>` : ""}
-        ${t.Owner ? `<span style="font-size:11px;color:var(--gray-500);white-space:nowrap;flex-shrink:0">${esc(t.Owner.name)}</span>` : ""}
-        ${t.id ? `<a class="crm-link" href="https://crm.zoho.com/crm/org919146768/tab/Tasks/${t.id}" target="_blank">פתח ↗</a>` : ""}
-        <button class="edit-meeting-btn edit-task-btn" data-edit-task-id="${esc(t.id)}">ערוך</button>
-        ${isArchive
-          ? `<button class="remark-btn" data-reopen-id="${esc(t.id)}" style="color:var(--blue)">↩ פתח מחדש</button>`
-          : `<button class="remark-btn" data-task-id="${esc(t.id)}" data-task-subject="${esc(t.Subject||'')}">+ הערה</button>`}
+        <div class="task-meta">
+          ${isArchive
+            ? '<span class="done-check">✓</span>'
+            : `<button class="done-btn" data-task-id="${esc(t.id)}" title="סמן כהושלם">✓</button>`}
+          ${isArchive
+            ? '<span class="badge badge-closed">הושלם</span>'
+            : `<span class="badge ${bc}">${priorityHe(t.Priority)}</span>`}
+          ${due ? `<span class="due-date ${ov&&!isArchive?"overdue":""}">${fmtDate(due)}</span>` : ""}
+          ${t.Owner ? `<span style="font-size:11px;color:var(--gray-500);white-space:nowrap;flex-shrink:0">${esc(t.Owner.name)}</span>` : ""}
+          ${t.id ? `<a class="crm-link" href="https://crm.zoho.com/crm/org919146768/tab/Tasks/${t.id}" target="_blank">פתח ↗</a>` : ""}
+          <button class="edit-meeting-btn edit-task-btn" data-edit-task-id="${esc(t.id)}">ערוך</button>
+          ${isArchive
+            ? `<button class="remark-btn" data-reopen-id="${esc(t.id)}" style="color:var(--blue)">↩ פתח מחדש</button>`
+            : `<button class="remark-btn" data-task-id="${esc(t.id)}" data-task-subject="${esc(t.Subject||'')}">+ הערה</button>`}
+        </div>
       </div>`;
   }).join("");
 }
@@ -1705,9 +1707,11 @@ function renderHomeTasks(tasks) {
     var clientId   = t.What_Id && t.What_Id.id   ? t.What_Id.id   : "";
     return '<div class="task-card">' +
       '<div class="task-title">' + esc(t.Subject || "") + '</div>' +
-      (priLabel ? '<span class="badge ' + priClass + '">' + esc(priLabel) + '</span>' : '') +
-      (t.Due_Date ? '<span class="due-date ' + (isOverdue(t.Due_Date) ? "overdue" : "") + '">' + fmtDate(t.Due_Date) + '</span>' : '') +
-      (clientId ? '<button class="ht-client" onclick="goToClient(\'' + esc(clientId) + '\')">' + esc(clientName) + '</button>' : '') +
+      '<div class="task-meta">' +
+        (priLabel ? '<span class="badge ' + priClass + '">' + esc(priLabel) + '</span>' : '') +
+        (t.Due_Date ? '<span class="due-date ' + (isOverdue(t.Due_Date) ? "overdue" : "") + '">' + fmtDate(t.Due_Date) + '</span>' : '') +
+        (clientId ? '<button class="ht-client" onclick="goToClient(\'' + esc(clientId) + '\')">' + esc(clientName) + '</button>' : '') +
+      '</div>' +
     '</div>';
   }).join("");
 }

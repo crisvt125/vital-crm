@@ -130,6 +130,9 @@
   /* PANEL */
   .panel { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); display: flex; flex-direction: column; height: 460px; }
   .panel-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 14px 16px 10px; border-bottom: 1px solid var(--gray-100); }
+  /* Fills the panel's fixed height so .item-list's overflow-y:auto actually clips
+     instead of spilling content past the panel when a client has many items. */
+  .panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
   .panel-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
   .icon-tasks     { background: var(--blue-lt); }
   .icon-notes     { background: var(--teal-lt); }
@@ -171,7 +174,7 @@
   .filter-btn.active-a { background: var(--amber); border-color: var(--amber); color: #fff; }
 
   /* LIST */
-  .item-list { flex: 1; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .item-list { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
   .item-list::-webkit-scrollbar { width: 4px; }
   .item-list::-webkit-scrollbar-thumb { background: var(--gray-100); border-radius: 2px; }
   .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--gray-300); gap: 8px; font-size: 13px; padding: 40px 0; text-align: center; }

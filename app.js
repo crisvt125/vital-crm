@@ -1170,16 +1170,34 @@ function addMeetingParticipant(raw) {
   renderMeetingContactSelect();
 }
 
+// Internal team — always offered as quick-add options regardless of which
+// client the meeting is for, since they're not necessarily Zoho Contacts.
+const INTERNAL_TEAM = [
+  { name: "אנדריי שירוב",         email: "andrey@vitalop.com" },
+  { name: "אמנון עזוז",     email: "amnon@vitalop.com" },
+  { name: "גבי גולדפלד",    email: "gabi@vitalop.com" },
+  { name: "כריס עלם",       email: "cris@vitalop.com" }
+];
+
+function optgroupHtml(label, items) {
+  if (!items.length) return "";
+  return '<optgroup label="' + esc(label) + '">' +
+    items.map(function(p) { return '<option value="' + esc(p.email) + '">' + esc(p.name) + '</option>'; }).join("") +
+    '</optgroup>';
+}
+
 function renderMeetingContactSelect() {
   const sel = document.getElementById("meetingContactSelect");
-  const available = allContacts.filter(function(c) {
-    return c.Email && meetingParticipantEmails.indexOf(c.Email) === -1;
+  const clientContacts = allContacts
+    .filter(function(c) { return c.Email && meetingParticipantEmails.indexOf(c.Email) === -1; })
+    .map(function(c) { return { name: [c.First_Name, c.Last_Name].filter(Boolean).join(" ") || c.Email, email: c.Email }; });
+  const teamOptions = INTERNAL_TEAM.filter(function(p) {
+    return meetingParticipantEmails.indexOf(p.email) === -1 &&
+      !clientContacts.some(function(c) { return c.email === p.email; });
   });
   sel.innerHTML = '<option value="">+ הוסף איש קשר...</option>' +
-    available.map(function(c) {
-      const name = [c.First_Name, c.Last_Name].filter(Boolean).join(" ") || c.Email;
-      return '<option value="' + esc(c.Email) + '">' + esc(name) + '</option>';
-    }).join("");
+    optgroupHtml("צוות VITAL OP", teamOptions) +
+    optgroupHtml("אנשי קשר", clientContacts);
 }
 
 document.getElementById("meetingContactSelect").addEventListener("change", function() {
@@ -1240,16 +1258,26 @@ function selectParticipantSuggestion(idx) {
 }
 
 function searchParticipantContacts(query) {
+  const q = query.toLowerCase();
+  const teamMatches = INTERNAL_TEAM
+    .filter(function(p) {
+      return meetingParticipantEmails.indexOf(p.email) === -1 &&
+        (p.name.toLowerCase().indexOf(q) !== -1 || p.email.toLowerCase().indexOf(q) !== -1);
+    })
+    .map(function(p) { return { First_Name: p.name, Last_Name: "", Email: p.email }; });
+
   ZOHO.CRM.API.searchRecords({ Entity: "Contacts", Type: "word", Query: query, page: 1, per_page: 8 })
     .then(function(resp) {
       const results = (resp.data || []).filter(function(c) {
-        return c.Email && meetingParticipantEmails.indexOf(c.Email) === -1;
+        return c.Email && meetingParticipantEmails.indexOf(c.Email) === -1 &&
+          !teamMatches.some(function(t) { return t.Email === c.Email; });
       });
-      renderParticipantSuggestions(results);
+      renderParticipantSuggestions(teamMatches.concat(results));
     })
     .catch(function(err) {
       dbg("searchParticipantContacts ✗", err, true);
-      hideParticipantSuggestions();
+      if (teamMatches.length) renderParticipantSuggestions(teamMatches);
+      else hideParticipantSuggestions();
     });
 }
 

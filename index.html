@@ -49,7 +49,7 @@
     <div class="stat-pill pill-tasks">📋 <span id="statTasks">—</span> משימות</div>
     <div class="stat-pill pill-notes">📝 <span id="statNotes">—</span> הערות</div>
     <div class="stat-pill pill-actions">📅 <span id="statActions">—</span> פגישות</div>
-    <button class="stat-pill pill-summaries" onclick="openMeetingSummariesModal()">🧾 <span id="statSummaries">—</span> תקצירים</button>
+    <button class="stat-pill pill-summaries" id="summariesToggleBtn" onclick="toggleSummariesView()">🧾 <span id="statSummaries">—</span> תקצירים</button>
   </div>
 </div>
 
@@ -124,6 +124,31 @@
   </div>
 
 </main>
+
+<!-- SUMMARIES VIEW -->
+<div id="summariesView" class="hidden">
+  <div class="summary-selector-bar">
+    <span class="summary-selector-label">פגישה</span>
+    <select id="summarySelect"><option value="">— בחר פגישה —</option></select>
+  </div>
+  <div id="summaryEmptyState" class="empty-state hidden">
+    <div class="empty-icon">🧾</div>
+    <div>אין תקצירי פגישות עדיין</div>
+  </div>
+  <div id="summaryContent" class="summary-content-grid hidden">
+    <div class="summary-pane summary-pane-brief">
+      <div class="summary-pane-section">
+        <div class="summary-section-heading">חשיפות</div>
+        <div id="summaryExposuresList"></div>
+      </div>
+      <div class="summary-pane-section">
+        <div class="summary-section-heading">נקודות עיקריות</div>
+        <div id="summaryHighlightsList"></div>
+      </div>
+    </div>
+    <div class="summary-pane summary-pane-long" id="summaryLongText"></div>
+  </div>
+</div>
 
 <!-- HOME VIEW -->
 <div id="homeView">
@@ -438,17 +463,6 @@
     <div class="modal-actions">
       <button class="btn-save" id="saveContactBtn" onclick="saveContact()">שמור</button>
       <button class="btn-cancel" onclick="closeContactModal()">ביטול</button>
-    </div>
-  </div>
-</div>
-
-<!-- MEETING SUMMARIES MODAL -->
-<div class="modal-backdrop" id="meetingSummariesModal">
-  <div class="modal modal-wide">
-    <div class="modal-title">תקצירי פגישות<span id="summaryModalClientName"></span></div>
-    <div class="item-list" id="summaryModalList"></div>
-    <div class="modal-actions">
-      <button class="btn-cancel" onclick="closeMeetingSummariesModal()">סגור</button>
     </div>
   </div>
 </div>

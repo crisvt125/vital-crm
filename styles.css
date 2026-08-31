@@ -109,6 +109,7 @@
     border: none; cursor: pointer; font-family: inherit; transition: all .12s;
   }
   .pill-summaries:hover { background: var(--purple); color: #fff; }
+  .pill-summaries.active { background: var(--purple); color: #fff; }
 
   /* CONTACTS BAR */
   .contacts-bar { background: var(--white); border-bottom: 1px solid var(--gray-100); padding: 8px 20px; display: flex; align-items: center; gap: 10px; overflow-x: auto; }
@@ -180,6 +181,27 @@
   .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--gray-300); gap: 8px; font-size: 13px; padding: 40px 0; text-align: center; }
   .empty-icon { font-size: 32px; }
 
+  /* SUMMARIES VIEW */
+  #summariesView.hidden { display: none; }
+  #summaryEmptyState.hidden { display: none; }
+  .summary-selector-bar { background: var(--white); border-bottom: 1px solid var(--gray-100); padding: 12px 20px; display: flex; align-items: center; gap: 10px; }
+  .summary-selector-label { font-size: 11.5px; font-weight: 600; color: var(--gray-500); white-space: nowrap; }
+  #summarySelect {
+    appearance: none; background: var(--gray-50); border: 1px solid var(--gray-100); border-radius: 6px;
+    color: var(--gray-900); font-size: 13px; font-weight: 500; padding: 6px 14px; cursor: pointer;
+    flex: 1 1 320px; max-width: 480px; font-family: inherit;
+  }
+  #summarySelect:disabled { cursor: not-allowed; opacity: .6; }
+  #summarySelect:focus { outline: none; border-color: var(--blue); }
+  .summary-content-grid { display: flex; gap: 16px; padding: 16px 20px 24px; height: calc(100vh - 230px); min-height: 420px; }
+  .summary-content-grid.hidden { display: none; }
+  .summary-pane { background: var(--white); border-radius: var(--radius); box-shadow: var(--shadow); overflow-y: auto; }
+  .summary-pane-brief { flex: 1; padding: 20px; display: flex; flex-direction: column; gap: 22px; }
+  .summary-pane-long { flex: 2; padding: 24px 28px; font-size: 16px; line-height: 1.8; color: var(--gray-900); white-space: pre-wrap; }
+  .summary-section-heading { font-size: 12.5px; font-weight: 700; color: var(--purple); margin-bottom: 10px; }
+  .summary-bullet { font-size: 14px; line-height: 1.6; color: var(--gray-700); margin-bottom: 6px; white-space: pre-wrap; }
+  .summary-bullet-empty { font-size: 13px; color: var(--gray-300); }
+
   /* SPINNER */
   .loading-state { display: flex; align-items: center; justify-content: center; height: 200px; flex-direction: column; gap: 12px; color: var(--gray-500); }
   .spinner { width: 28px; height: 28px; border: 3px solid var(--gray-100); border-top-color: var(--blue); border-radius: 50%; animation: spin .7s linear infinite; }
@@ -225,11 +247,6 @@
   .summary-title { font-size: 13px; font-weight: 600; color: var(--gray-900); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
   .summary-date { font-size: 11px; color: var(--gray-500); white-space: nowrap; flex-shrink: 0; }
   .summary-short { font-size: 12.5px; color: var(--gray-700); line-height: 1.5; white-space: pre-wrap; }
-  .summary-details { margin-top: 4px; }
-  .summary-details summary { cursor: pointer; font-size: 11.5px; color: var(--blue); list-style: none; }
-  .summary-details summary::-webkit-details-marker { display: none; }
-  .summary-details[open] summary { margin-bottom: 4px; }
-  .summary-long { font-size: 12.5px; color: var(--gray-700); line-height: 1.5; white-space: pre-wrap; }
   .badge-recap { background: var(--amber-lt); color: var(--amber); }
 
   /* PARTICIPANT AUTOCOMPLETE */
@@ -293,6 +310,8 @@
     .panel-collapse-toggle { display: inline-flex; }
     .panel.collapsed .panel-body { display: none; }
     .panel.collapsed .panel-collapse-toggle { transform: rotate(-90deg); }
+    .summary-content-grid { flex-direction: column; height: auto; }
+    .summary-pane-long { max-height: 60vh; }
   }
 
   /* DONE BUTTON */
@@ -336,10 +355,7 @@
     max-height: calc(100vh - 48px);
     overflow-y: auto;
   }
-  .modal-wide { max-width: 640px; }
-  .modal-wide .item-list { max-height: 55vh; overflow-y: auto; padding: 0; }
   .modal-title { font-size: 15px; font-weight: 700; color: var(--gray-900); }
-  .modal-title #summaryModalClientName { color: var(--gray-500); font-weight: 500; }
   .modal-subtitle { font-size: 12px; color: var(--gray-500); }
   .modal textarea {
     width: 100%; border: 1px solid var(--gray-100);

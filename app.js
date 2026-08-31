@@ -77,6 +77,28 @@ function esc(s) {
 function sanitizeSummaryHtml(s) {
   return esc(s).replace(/&lt;(\/?)(strong|em)&gt;/gi, "<$1$2>");
 }
+// Long_Summary is a single blob built by teams-pipeline's zoho_mapper.py:
+// "<narrative>\n\n• highlight\n• highlight\n\n— חשיפות —\n• exposure line".
+// Parsed back apart here rather than stored separately in Zoho — the format
+// is entirely our own and deterministic, so this is safe to rely on.
+function parseLongSummary(text) {
+  const paras = (text || "").split(/\n\n+/);
+  let narrative = "", highlightLines = [], exposureLines = [];
+  paras.forEach(function(p) {
+    const trimmed = p.trim();
+    if (!trimmed) return;
+    if (trimmed.startsWith("— חשיפות —")) {
+      exposureLines = trimmed.split("\n").slice(1).map(l => l.trim()).filter(Boolean);
+    } else if (trimmed.split("\n").every(l => l.trim().startsWith("•"))) {
+      highlightLines = trimmed.split("\n").map(l => l.trim()).filter(Boolean);
+    } else if (!narrative) {
+      narrative = trimmed;
+    } else {
+      narrative += "\n\n" + trimmed;
+    }
+  });
+  return { narrative: narrative, highlightLines: highlightLines, exposureLines: exposureLines };
+}
 // Action items from Claude carry <strong>/<em> emphasis meant for the summary's
 // rich text — Task Subject/Description are plain text, so strip tags entirely
 // rather than let them show up as literal "<strong>" in Zoho.
@@ -281,6 +303,8 @@ function loadAccounts() {
 function showHomeView() {
   document.getElementById("homeView").classList.remove("hidden");
   document.getElementById("mainPanels").classList.add("hidden");
+  document.getElementById("summariesView").classList.add("hidden");
+  document.getElementById("summariesToggleBtn").classList.remove("active");
   document.getElementById("contactsBar").classList.add("hidden");
   document.getElementById("clientSelect").value = "";
   currentAccountId = null;
@@ -406,8 +430,10 @@ document.getElementById("clientModal").addEventListener("click", function(e) {
 // ── LOAD CLIENT DATA ──────────────────────────────────────────
 function loadClientData(id, meta) {
   document.getElementById("homeView").classList.add("hidden");
+  document.getElementById("summariesView").classList.add("hidden");
   document.getElementById("mainPanels").classList.remove("hidden");
   document.getElementById("contactsBar").classList.remove("hidden");
+  document.getElementById("summariesToggleBtn").classList.remove("active");
 
   currentAccountId = id;
   sessionStorage.setItem("crm_lastAccountId", id);
@@ -427,7 +453,9 @@ function loadClientData(id, meta) {
   showSpinner("taskList");
   showSpinner("noteList");
   showSpinner("actionList");
-  showSpinner("summaryModalList");
+  document.getElementById("summarySelect").innerHTML = '<option value="">— בחר פגישה —</option>';
+  document.getElementById("summaryContent").classList.add("hidden");
+  document.getElementById("summaryEmptyState").classList.add("hidden");
 
   Promise.all([
     ZOHO.CRM.API.getRelatedRecords({ Entity:"Accounts", RecordID:id, RelatedList:"Tasks", page:1, per_page:50 }),
@@ -478,40 +506,55 @@ function renderMeetingSummaries() {
   const items = [...allMeetingSummaries].sort((a, b) => new Date(b.Meeting_Date || 0) - new Date(a.Meeting_Date || 0));
   document.getElementById("statSummaries").textContent = allMeetingSummaries.length;
 
-  const list = document.getElementById("summaryModalList");
+  const sel = document.getElementById("summarySelect");
+  const prevValue = sel.value;
+
   if (!items.length) {
-    list.innerHTML = '<div class="empty-state"><div class="empty-icon">🧾</div><div>אין תקצירי פגישות עדיין</div></div>';
+    sel.innerHTML = '<option value="">— בחר פגישה —</option>';
+    sel.disabled = true;
+    document.getElementById("summaryEmptyState").classList.remove("hidden");
+    document.getElementById("summaryContent").classList.add("hidden");
     return;
   }
 
-  list.innerHTML = items.map(function(s) {
-    const long = (s.Long_Summary || "").trim();
-    return `
-      <div class="summary-card">
-        <div class="summary-header">
-          <div class="summary-title">${esc(s.Name || "פגישה")}</div>
-          ${s.Meeting_Date ? `<span class="summary-date">${fmtDate(s.Meeting_Date)}</span>` : ""}
-        </div>
-        ${s.Short_Summary ? `<div class="summary-short">${sanitizeSummaryHtml(s.Short_Summary)}</div>` : ""}
-        ${long ? `<details class="summary-details"><summary>הצג תקציר מלא</summary><div class="summary-long">${sanitizeSummaryHtml(long)}</div></details>` : ""}
-      </div>`;
+  sel.disabled = false;
+  sel.innerHTML = items.map(function(s) {
+    const label = esc(s.Name || "פגישה") + (s.Meeting_Date ? " — " + fmtDate(s.Meeting_Date) : "");
+    return `<option value="${esc(s.id)}">${label}</option>`;
   }).join("");
+
+  sel.value = items.some(s => s.id === prevValue) ? prevValue : items[0].id;
+  renderSelectedSummaryContent();
 }
 
-function openMeetingSummariesModal() {
+function renderSelectedSummaryContent() {
+  const id = document.getElementById("summarySelect").value;
+  const s = allMeetingSummaries.find(function(x) { return x.id === id; });
+  document.getElementById("summaryEmptyState").classList.add("hidden");
+  document.getElementById("summaryContent").classList.toggle("hidden", !s);
+  if (!s) return;
+
+  const parsed = parseLongSummary(s.Long_Summary || "");
+
+  const bulletsHtml = function(lines) {
+    return lines.length
+      ? lines.map(l => `<div class="summary-bullet">${sanitizeSummaryHtml(l)}</div>`).join("")
+      : '<div class="summary-bullet-empty">—</div>';
+  };
+  document.getElementById("summaryExposuresList").innerHTML = bulletsHtml(parsed.exposureLines);
+  document.getElementById("summaryHighlightsList").innerHTML = bulletsHtml(parsed.highlightLines);
+  document.getElementById("summaryLongText").innerHTML = sanitizeSummaryHtml(parsed.narrative);
+}
+
+document.getElementById("summarySelect").addEventListener("change", renderSelectedSummaryContent);
+
+function toggleSummariesView() {
   if (!currentAccountId) { showError("יש לבחור לקוח תחילה"); return; }
-  document.getElementById("summaryModalClientName").textContent =
-    " — " + document.getElementById("clientName").textContent;
-  document.getElementById("meetingSummariesModal").classList.add("open");
+  const showingSummaries = !document.getElementById("summariesView").classList.contains("hidden");
+  document.getElementById("summariesView").classList.toggle("hidden", showingSummaries);
+  document.getElementById("mainPanels").classList.toggle("hidden", !showingSummaries);
+  document.getElementById("summariesToggleBtn").classList.toggle("active", !showingSummaries);
 }
-
-function closeMeetingSummariesModal() {
-  document.getElementById("meetingSummariesModal").classList.remove("open");
-}
-
-document.getElementById("meetingSummariesModal").addEventListener("click", function(e) {
-  if (e.target === this) closeMeetingSummariesModal();
-});
 
 // ── CONTACTS ──────────────────────────────────────────────────
 function loadContacts(accountId) {
@@ -1545,7 +1588,7 @@ document.getElementById("meetingModal").addEventListener("click", function(e) {
   if (e.target === this) closeMeetingModal();
 });
 document.addEventListener("keydown", function(e) {
-  if (e.key === "Escape") { closeRemarkModal(); closeMeetingModal(); closeImportMeetingModal(); closeMeetingSummariesModal(); }
+  if (e.key === "Escape") { closeRemarkModal(); closeMeetingModal(); closeImportMeetingModal(); }
 });
 
 // ── HOME VIEW ─────────────────────────────────────────────────

@@ -77,6 +77,12 @@ function esc(s) {
 function sanitizeSummaryHtml(s) {
   return esc(s).replace(/&lt;(\/?)(strong|em)&gt;/gi, "<$1$2>");
 }
+// Action items from Claude carry <strong>/<em> emphasis meant for the summary's
+// rich text — Task Subject/Description are plain text, so strip tags entirely
+// rather than let them show up as literal "<strong>" in Zoho.
+function stripHtmlTags(s) {
+  return String(s || "").replace(/<\/?[a-z][^>]*>/gi, "");
+}
 function fmtDate(iso) {
   if (!iso) return "";
   return new Date(iso).toLocaleDateString("he-IL", { day:"2-digit", month:"short", year:"numeric" });
@@ -1584,10 +1590,10 @@ function processActionItems(summaries) {
       dueDate.setDate(dueDate.getDate() + 3);
       const dueDateStr = dueDate.toISOString().slice(0, 10);
       items.forEach(function(item) {
-        const subject = typeof item === "string" ? item : ((item && (item.task || item.title || item.text)) || String(item));
+        const subject = stripHtmlTags(typeof item === "string" ? item : ((item && (item.task || item.title || item.text)) || String(item)));
         const extra = [];
-        if (item && item.owner) extra.push("אחראי: " + item.owner);
-        if (item && item.deadline_text) extra.push("יעד: " + item.deadline_text);
+        if (item && item.owner) extra.push("אחראי: " + stripHtmlTags(item.owner));
+        if (item && item.deadline_text) extra.push("יעד: " + stripHtmlTags(item.deadline_text));
         ZOHO.CRM.API.insertRecord({
           Entity: "Tasks",
           APIData: {

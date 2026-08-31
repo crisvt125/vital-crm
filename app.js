@@ -311,7 +311,11 @@ function showHomeView() {
   sessionStorage.removeItem("crm_lastAccountId");
   setClientStatusSelect("");
   document.getElementById("clientStatusSelect").disabled = true;
-  document.getElementById("statSummaries").textContent = "—";
+  ["statTasks","statNotes","statActions","statSummaries"].forEach(function(s) {
+    document.getElementById(s).textContent = "—";
+  });
+  document.getElementById("clientName").textContent = "בחר לקוח";
+  document.getElementById("clientMeta").textContent = "בחר לקוח מהרשימה הנפתחת למעלה";
 }
 
 // ── CLIENT STATUS ─────────────────────────────────────────────
@@ -328,6 +332,30 @@ function setClientStatusSelect(status) {
   if (CLIENT_STATUS_CLASS[status]) sel.classList.add(CLIENT_STATUS_CLASS[status]);
 }
 
+// Moves a client <option> into the optgroup matching its (possibly just-changed)
+// status, creating the group if needed — otherwise the client picker keeps
+// showing it under its old status group until the page is reloaded.
+function regroupClientOption(opt, status) {
+  const sel = document.getElementById("clientSelect");
+  const group = CLIENT_STATUS_GROUPS.find(function(g) { return g.status === (status || ""); });
+  const groupIndex = CLIENT_STATUS_GROUPS.indexOf(group);
+
+  let optgroup = Array.prototype.find.call(sel.querySelectorAll("optgroup"), function(og) { return og.label === group.label; });
+  if (!optgroup) {
+    optgroup = document.createElement("optgroup");
+    optgroup.label = group.label;
+    const laterGroup = CLIENT_STATUS_GROUPS.slice(groupIndex + 1)
+      .map(function(g) { return Array.prototype.find.call(sel.querySelectorAll("optgroup"), function(og) { return og.label === g.label; }); })
+      .find(Boolean);
+    sel.insertBefore(optgroup, laterGroup || null);
+  }
+  optgroup.appendChild(opt);
+
+  Array.prototype.slice.call(sel.querySelectorAll("optgroup")).forEach(function(og) {
+    if (!og.children.length) og.remove();
+  });
+}
+
 document.getElementById("clientStatusSelect").addEventListener("change", function() {
   if (!currentAccountId) return;
   const newStatus = this.value;
@@ -341,7 +369,10 @@ document.getElementById("clientStatusSelect").addEventListener("change", functio
     APIData: { id: currentAccountId, field6: newStatus },
     Trigger: []
   }).then(function() {
-    if (opt) opt.dataset.status = newStatus;
+    if (opt) {
+      opt.dataset.status = newStatus;
+      regroupClientOption(opt, newStatus);
+    }
     setClientStatusSelect(newStatus);
   }).catch(function(err) {
     setClientStatusSelect(prevStatus);

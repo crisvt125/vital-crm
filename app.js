@@ -142,7 +142,7 @@ function priorityHe(p) {
 
 // ── STATE ─────────────────────────────────────────────────────
 let allTasks = [], allNotes = [], allMeetings = [], allContacts = [];
-let allMeetingSummaries = [], allHomeMeetingSummaries = [], homeSummarizedIds = new Set();
+let allMeetingSummaries = [], allHomeMeetingSummaries = [];
 let taskFilter = "all", noteFilter = "all", meetingTimeFilter = "upcoming";
 let currentAccountId = null, remarkTaskId = null, editingMeetingId = null, editingContactId = null;
 let meetingParticipantEmails = [];
@@ -787,15 +787,12 @@ function renderActivities() {
     return;
   }
 
-  const summarizedIds = new Set(allMeetingSummaries.map(function(s) { return s.Source_Event_Id; }).filter(Boolean));
-
   list.innerHTML = items.map(function(a) {
     const done      = a.Status === "Completed";
     const desc      = (a.Description || "").trim();
     const meetDate  = a.Start_DateTime || "";
     const upcoming  = meetDate && new Date(meetDate) >= now;
     const joinUrl   = getJoinUrl(a);
-    const needsRecap = !upcoming && isOnlineMeeting(a) && !summarizedIds.has(a.id);
     return `
       <div class="action-card ${done?"done-action":""}">
         <div class="action-header">
@@ -803,7 +800,6 @@ function renderActivities() {
           ${meetDate ? `<span class="meeting-date ${upcoming?"upcoming":""}">📅 ${fmtDateTime(meetDate)}</span>` : ""}
           ${isToday(meetDate) ? `<span class="badge badge-today">היום</span>` : ""}
           <span class="badge ${upcoming?"badge-upcoming":"badge-past"}">${upcoming?"עתידי":"עבר"}</span>
-          ${needsRecap ? `<span class="badge badge-recap">⚠ ממתין לתקציר</span>` : ""}
         </div>
         ${desc ? `<div class="action-body">${esc(desc.substring(0,140))}${desc.length>140?"…":""}</div>` : ""}
         <div class="action-footer">
@@ -1204,7 +1200,7 @@ function addMeetingParticipant(raw) {
 // Internal team — always offered as quick-add options regardless of which
 // client the meeting is for, since they're not necessarily Zoho Contacts.
 const INTERNAL_TEAM = [
-  { name: "אנדריי שירוב",         email: "andrey@vitalop.com" },
+{ name: "אנדריי שירוב",         email: "andrey@vitalop.com" },
   { name: "אמנון עזוז",     email: "amnon@vitalop.com" },
   { name: "גבי גולדפלד",    email: "gabi@vitalop.com" },
   { name: "כריס עלם",       email: "cris@vitalop.com" }
@@ -1666,7 +1662,6 @@ function loadHomeView() {
     var openTasks = (results[0].data || []).filter(function(t) { return t.Status !== "Completed"; });
     allHomeMeetings = results[1].data || [];
     allHomeMeetingSummaries = results[2].data || [];
-    homeSummarizedIds = new Set(allHomeMeetingSummaries.map(function(s) { return s.Source_Event_Id; }).filter(Boolean));
     renderHomeTasks(openTasks);
     renderHomeMeetingsView();
     renderPendingSummaries();
@@ -1830,14 +1825,11 @@ function homeMeetingCardHtml(m) {
   var clientId   = m.What_Id && m.What_Id.id   ? m.What_Id.id   : "";
   var joinUrl    = getJoinUrl(m);
   var isDone     = m.Status === "Completed";
-  var upcoming   = m.Start_DateTime && new Date(m.Start_DateTime) >= new Date();
-  var needsRecap = !upcoming && isOnlineMeeting(m) && !homeSummarizedIds.has(m.id);
   return '<div class="action-card' + (isDone ? ' done-action' : '') + '">' +
     '<div class="action-header">' +
       '<div class="action-title">' + esc(title) + '</div>' +
       (m.Start_DateTime ? '<span class="meeting-date upcoming">' + fmtDateTime(m.Start_DateTime) + '</span>' : '') +
       (isToday(m.Start_DateTime) ? '<span class="badge badge-today">היום</span>' : '') +
-      (needsRecap ? '<span class="badge badge-recap">⚠ ממתין לתקציר</span>' : '') +
     '</div>' +
     '<div class="action-footer">' +
       '<button class="edit-meeting-btn delete-meeting-btn" data-meeting-id="' + esc(m.id) + '">🗑 בטל פגישה</button>' +
